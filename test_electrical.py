@@ -13,11 +13,13 @@ class TestCalculateDC(unittest.TestCase):
         self.assertAlmostEqual(current_a, 0.0)
         self.assertAlmostEqual(power_w, 0.0)
 
-    def test_resistance_must_be_greater_than_zero(self):
-        for resistance_ohm in (0, -1):
-            with self.subTest(resistance_ohm=resistance_ohm):
-                with self.assertRaises(ValueError):
-                    calculate_dc(12, resistance_ohm)
+    def test_zero_resistance_is_rejected(self):
+        with self.assertRaises(ValueError):
+            calculate_dc(12, 0)
+
+    def test_negative_resistance_is_rejected(self):
+        with self.assertRaises(ValueError):
+            calculate_dc(12, -1)
 
     def test_voltage_must_be_finite(self):
         for voltage_v in (float("nan"), float("inf")):
