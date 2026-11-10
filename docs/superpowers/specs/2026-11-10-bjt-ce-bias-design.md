@@ -113,8 +113,9 @@ Cutoff guard: when `VBB <= VBE` the transistor is off. Both methods return
 `cutoff`. No division by a negative base current.
 
 Saturation: the app reports the linear-model result and flags the region when
-`0 < VCE < 0.2 V`. It does **not** clamp `VCE` to 0.2 V. The warning says the
-linear model no longer holds. (Builder must keep this behavior.)
+`VCE < 0.2 V` (including negative or zero `VCE`, deep saturation). It does **not**
+clamp `VCE` to 0.2 V. The warning says the linear model no longer holds and the
+unclamped value is shown as-is. (Builder must keep this behavior.)
 
 Near-saturation: `0.2 V <= VCE < 0.5 V` gets a warning but stays `active`.
 
