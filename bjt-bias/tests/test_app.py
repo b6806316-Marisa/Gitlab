@@ -53,6 +53,23 @@ class TestRoutes(unittest.TestCase):
         body = response.get_data(as_text=True)
         self.assertIn('class="error"', body)
 
+    def test_get_shows_schematic(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn("<svg", body)
+        self.assertIn("VCC = 12 V", body)
+        self.assertIn("R1", body)
+
+    def test_post_valid_shows_schematic_and_load_line(self):
+        response = self.client.post("/", data=DEFAULT_POST)
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertGreaterEqual(body.count("<svg"), 2)
+        self.assertIn("Q (2.66 mA, 4.89 V)", body)
+        self.assertIn("VCE (V)", body)
+        self.assertIn("VB = 1.96 V", body)
+
     def test_blank_submission_round_trips(self):
         data = dict(DEFAULT_POST)
         data["r1"] = ""

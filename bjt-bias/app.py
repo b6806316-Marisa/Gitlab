@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request
+from markupsafe import Markup
 
 from bjt import BiasError, compare, parse_input, solve_nodal, solve_thevenin
+from diagrams import load_line_svg, schematic_svg
 
 DEFAULT_FORM = {
     "vcc": "12",
@@ -31,6 +33,13 @@ def fmt(x):
 def create_app():
     app = Flask(__name__)
 
+    def schematic_for(form, nodes=None):
+        try:
+            values = {k: float(str(form.get(k, "")).strip() or 0) for k in DEFAULT_FORM}
+        except (TypeError, ValueError):
+            values = {k: 0.0 for k in DEFAULT_FORM}
+        return Markup(schematic_svg(nodes=nodes, **values))
+
     @app.route("/", methods=["GET", "POST"])
     def index():
         if request.method == "POST":
@@ -56,12 +65,21 @@ def create_app():
                         "saturation": "Saturation",
                     }.get(primary.region, primary.region),
                 }
+                nodes = {
+                    "vb_v": primary.vb_v,
+                    "ve_v": primary.ve_v,
+                    "vc_v": primary.vc_v,
+                }
                 return render_template(
                     "index.html",
                     form=form,
                     fields=FIELD_META,
                     results=results,
                     errors=None,
+                    schematic=schematic_for(form, nodes),
+                    loadline=Markup(
+                        load_line_svg(bias.vcc_v, bias.rc_ohm, bias.re_ohm, primary.ic_a, primary.vce_v)
+                    ),
                 )
             except BiasError as exc:
                 return render_template(
@@ -70,6 +88,8 @@ def create_app():
                     fields=FIELD_META,
                     results=None,
                     errors=exc.errors,
+                    schematic=schematic_for(form),
+                    loadline=None,
                 )
 
         return render_template(
@@ -78,10 +98,13 @@ def create_app():
             fields=FIELD_META,
             results=None,
             errors=None,
+            schematic=schematic_for(DEFAULT_FORM),
+            loadline=None,
         )
 
     return app
 
 
 if __name__ == "__main__":
+    # โหมดพัฒนาสำหรับเดโมในเครื่องเท่านั้น (debug=True ไม่เหมาะกับงานจริง)
     create_app().run(debug=True, port=5000)

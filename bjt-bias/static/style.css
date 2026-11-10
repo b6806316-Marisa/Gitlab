@@ -39,3 +39,22 @@ th { background: #f0f3f8; }
 .verdict.bad { color: var(--bad); }
 .note { color: var(--muted); font-size: .9rem; }
 .foot code { background: #f0f3f8; padding: 1px 5px; border-radius: 4px; }
+
+/* ผังวงจรและกราฟ load line (inline SVG) */
+.diagram svg { width: 100%; max-width: 760px; height: auto; display: block; margin: 0 auto; }
+.diagram .wire { stroke: #1f2430; stroke-width: 2; fill: none; }
+.diagram .res { fill: #fff; stroke: #1f2430; stroke-width: 2; }
+.diagram .bjtt { fill: none; stroke: #1f2430; stroke-width: 2; }
+.diagram .node { fill: #1f6feb; }
+.diagram .lbl { font-size: 13px; fill: #1f2430; font-weight: 600; }
+.diagram .val { font-size: 12px; fill: #5b6475; }
+.diagram .nodeval { font-size: 12px; fill: #1f6feb; font-weight: 600; }
+.diagram .axis { stroke: #5b6475; stroke-width: 1.5; }
+.diagram .grid { stroke: #e5e9f0; stroke-width: 1; }
+.diagram .loadline { stroke: #1f6feb; stroke-width: 2.5; }
+.diagram .qguide { stroke: #cf222e; stroke-width: 1; stroke-dasharray: 4 3; }
+.diagram .qdot { fill: #cf222e; }
+.diagram .qlab { font-size: 12px; fill: #cf222e; font-weight: 600; }
+.diagram .axislabel { font-size: 13px; fill: #1f2430; font-weight: 600; }
+.diagram .tick { font-size: 11px; fill: #5b6475; }
+.diagram .warnnote { font-size: 12px; fill: #9a6700; font-weight: 600; }

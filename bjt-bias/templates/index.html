@@ -40,6 +40,11 @@
     </section>
     {% endif %}
 
+    <section class="card diagram">
+      <h2>ผังวงจร (Schematic)</h2>
+      {{ schematic }}
+    </section>
+
     {% if results %}
     {% set p = results.primary %}
     <section class="card results">
@@ -91,6 +96,13 @@
         </tbody>
       </table>
       <p class="note">เกณฑ์: ต่างสัมพัทธ์ ≤ 1e-6 (หรือสัมบูรณ์ ≤ 1e-12 เมื่อค่าใกล้ศูนย์)</p>
+    </section>
+    {% endif %}
+
+    {% if loadline %}
+    <section class="card diagram">
+      <h2>กราฟ load line และจุดทำงาน Q</h2>
+      {{ loadline }}
     </section>
     {% endif %}
 
