@@ -1,6 +1,6 @@
 import unittest
 
-from units import RESISTANCE_UNITS, VOLTAGE_UNITS, to_si, unit_label
+from units import RESISTANCE_UNITS, VOLTAGE_UNITS, UnitError, to_si, unit_label
 
 
 class TestToSi(unittest.TestCase):
@@ -24,8 +24,11 @@ class TestToSi(unittest.TestCase):
     def test_non_numeric_is_unchanged(self):
         self.assertEqual(to_si("abc", "kohm", "resistance"), "abc")
 
-    def test_unknown_unit_falls_back_to_base(self):
-        self.assertEqual(to_si("12", "furlong", "voltage"), "12.0")
+    def test_unknown_unit_raises_error(self):
+        with self.assertRaises(UnitError):
+            to_si("12", "furlong", "voltage")
+        with self.assertRaises(UnitError):
+            to_si("100", "furlong", "resistance")
 
     def test_negative_and_decimal_values(self):
         self.assertAlmostEqual(float(to_si("-2.5", "v", "voltage")), -2.5)

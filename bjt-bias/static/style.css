@@ -1,60 +1,135 @@
 :root {
-  --bg: #f6f7fb;
+  --bg: #eef2f7;
   --card: #ffffff;
-  --text: #1f2430;
+  --text: #14213d;
   --muted: #5b6475;
-  --accent: #1f6feb;
+  --accent: #0b7285;
+  --accent-soft: #e3f2f6;
   --ok: #1a7f37;
+  --ok-bg: #dafbe1;
   --bad: #cf222e;
+  --bad-bg: #ffebe9;
   --warn: #9a6700;
+  --warn-bg: #fff8c5;
   --border: #d8dee9;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
-.container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
-h1 { margin: 0 0 4px; font-size: 1.6rem; }
-.subtitle { color: var(--muted); margin: 0 0 16px; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
-.field { display: flex; flex-direction: column; gap: 4px; }
-.field .label { font-weight: 600; }
-.field input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
-.field .hint { color: var(--muted); font-size: .85rem; }
-.actions { grid-column: 1 / -1; }
-button { background: var(--accent); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 1rem; cursor: pointer; }
-button:hover { filter: brightness(0.95); }
-.error { border-color: #f1b3b8; background: #fff5f5; }
-.error h2 { color: var(--bad); margin-top: 0; }
-.badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 700; margin-bottom: 10px; }
-.badge-active { background: #dafbe1; color: var(--ok); }
-.badge-cutoff { background: #fff8c5; color: var(--warn); }
-.badge-saturation { background: #ffebe9; color: var(--bad); }
-.warnings { background: #fff8c5; border: 1px solid #e3c04b; border-radius: 8px; padding: 8px 12px; margin: 8px 0 12px; }
-.warnings h3 { margin: 0 0 4px; font-size: 1rem; color: #7a5200; }
-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
-th { background: #f0f3f8; }
-.result-table td:nth-child(2), .compare-table td:nth-child(n+2) { font-family: Consolas, "Courier New", monospace; }
-.verdict.ok { color: var(--ok); }
-.verdict.bad { color: var(--bad); }
-.note { color: var(--muted); font-size: .9rem; }
-.foot code { background: #f0f3f8; padding: 1px 5px; border-radius: 4px; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, "Noto Sans Thai", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+}
 
-/* ผังวงจรและกราฟ load line (inline SVG) */
-.diagram svg { width: 100%; max-width: 760px; height: auto; display: block; margin: 0 auto; }
-.diagram .wire { stroke: #1f2430; stroke-width: 2; fill: none; }
-.diagram .res { fill: #fff; stroke: #1f2430; stroke-width: 2; }
-.diagram .bjtt { fill: none; stroke: #1f2430; stroke-width: 2; }
-.diagram .node { fill: #1f6feb; }
-.diagram .lbl { font-size: 13px; fill: #1f2430; font-weight: 600; }
+/* ---------- header ---------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 14px 24px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo { width: 42px; height: 42px; }
+.logo-body { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.logo-core { fill: var(--accent); }
+.logo-pin { stroke: var(--accent); stroke-width: 2; fill: none; stroke-linecap: round; }
+.brand-text h1 { margin: 0; font-size: 1.45rem; letter-spacing: -0.2px; }
+.brand-text p { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
+.course-badge {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid #bfe3ea; border-radius: 10px;
+  padding: 8px 14px; font-size: .88rem; font-weight: 600; line-height: 1.25;
+}
+.course-badge .code-icon { font-family: Consolas, monospace; font-size: 1.05rem; }
+
+/* ---------- layout ---------- */
+.layout { max-width: 1180px; margin: 20px auto; padding: 0 20px; }
+.columns { display: grid; grid-template-columns: 1fr 1.25fr 0.9fr; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .columns { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px; margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(20,33,61,.05);
+}
+.card h2 {
+  margin: 0 0 14px; font-size: 1.02rem; display: flex; align-items: center; gap: 8px;
+  color: var(--text);
+}
+.ico { width: 18px; height: 18px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+
+/* ---------- input form ---------- */
+.param-form { display: flex; flex-direction: column; gap: 9px; }
+.prow { display: grid; grid-template-columns: 1fr 74px 64px; align-items: center; gap: 8px; }
+.plabel { display: flex; flex-direction: column; line-height: 1.2; }
+.plabel .sym { font-weight: 700; font-size: .96rem; }
+.plabel .sym sub { font-size: .7em; }
+.plabel .pdesc { color: var(--muted); font-size: .8rem; }
+.pval, .unit {
+  padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: .92rem; background: #fbfcfe; color: var(--text);
+}
+.pval { text-align: right; font-variant-numeric: tabular-nums; }
+.unit { text-align: center; }
+.unit-static { text-align: center; color: var(--muted); }
+.calc {
+  margin-top: 12px; width: 100%; background: var(--accent); color: #fff; border: none;
+  padding: 11px 16px; border-radius: 8px; font-size: .98rem; font-weight: 600; cursor: pointer;
+}
+.calc:hover { filter: brightness(0.94); }
+ul.error {
+  margin: 14px 0 0; padding: 10px 12px 10px 28px; list-style: disc;
+  background: var(--bad-bg); border: 1px solid #f1b3b8; border-radius: 8px;
+  color: var(--bad); font-size: .88rem;
+}
+
+/* ---------- results ---------- */
+.result-table { width: 100%; border-collapse: collapse; }
+.result-table td { padding: 7px 8px; border-bottom: 1px solid #edf0f5; }
+.result-table td:first-child { color: var(--muted); width: 40%; }
+.result-table .num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.result-table .unitc { text-align: right; color: var(--muted); width: 22%; }
+.placeholder { color: var(--muted); font-size: .9rem; }
+
+.status { margin-top: 14px; border-radius: 10px; padding: 12px 14px; border: 1px solid; }
+.status-title { font-weight: 700; }
+.status-detail { font-size: .88rem; margin-top: 3px; }
+.status-compare { font-size: .82rem; margin-top: 6px; opacity: .9; }
+.status-ok { background: var(--ok-bg); border-color: #a7e3b8; color: var(--ok); }
+.status-warn { background: var(--warn-bg); border-color: #e3c04b; color: var(--warn); }
+.status-bad { background: var(--bad-bg); border-color: #f1b3b8; color: var(--bad); }
+
+/* ---------- diagrams ---------- */
+.diagram svg { width: 100%; max-width: 620px; height: auto; display: block; margin: 0 auto; }
+.diagram .wire { stroke: #14213d; stroke-width: 2; fill: none; }
+.diagram .res { fill: none; stroke: #14213d; stroke-width: 2; }
+.diagram .bjtt { fill: none; stroke: #14213d; stroke-width: 2; }
+.diagram .node { fill: var(--accent); }
+.diagram .lbl { font-size: 13px; fill: #14213d; font-weight: 700; }
 .diagram .val { font-size: 12px; fill: #5b6475; }
-.diagram .nodeval { font-size: 12px; fill: #1f6feb; font-weight: 600; }
+.diagram .nodeval { font-size: 12px; fill: var(--accent); font-weight: 600; }
 .diagram .axis { stroke: #5b6475; stroke-width: 1.5; }
 .diagram .grid { stroke: #e5e9f0; stroke-width: 1; }
-.diagram .loadline { stroke: #1f6feb; stroke-width: 2.5; }
-.diagram .qguide { stroke: #cf222e; stroke-width: 1; stroke-dasharray: 4 3; }
-.diagram .qdot { fill: #cf222e; }
-.diagram .qlab { font-size: 12px; fill: #cf222e; font-weight: 600; }
-.diagram .axislabel { font-size: 13px; fill: #1f2430; font-weight: 600; }
+.diagram .loadline { stroke: var(--accent); stroke-width: 2.5; }
+.diagram .qguide { stroke: var(--bad); stroke-width: 1; stroke-dasharray: 4 3; }
+.diagram .qdot { fill: var(--bad); }
+.diagram .qlab { font-size: 12px; fill: var(--bad); font-weight: 700; }
+.diagram .axislabel { font-size: 13px; fill: #14213d; font-weight: 700; }
 .diagram .tick { font-size: 11px; fill: #5b6475; }
-.diagram .warnnote { font-size: 12px; fill: #9a6700; font-weight: 600; }
+.diagram .warnnote { font-size: 12px; fill: var(--warn); font-weight: 600; }
+
+/* ---------- compare / goal / footer ---------- */
+.compare { margin-top: 0; }
+.verdict { margin: 0 0 10px; }
+.verdict.ok { color: var(--ok); }
+.verdict.bad { color: var(--bad); }
+table.compare-table { width: 100%; border-collapse: collapse; }
+.compare-table th, .compare-table td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; font-size: .9rem; }
+.compare-table th { background: #f2f5f9; }
+.compare-table td:nth-child(n+2) { font-family: Consolas, "Courier New", monospace; }
+.note { color: var(--muted); font-size: .85rem; }
+.goal { background: #f7fafc; }
+.foot code { background: #f0f3f8; padding: 1px 5px; border-radius: 4px; }
+.foot h3 { margin: 0 0 8px; font-size: .98rem; }
+.foot p { margin: 4px 0; font-size: .88rem; }

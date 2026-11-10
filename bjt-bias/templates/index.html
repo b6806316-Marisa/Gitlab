@@ -3,113 +3,138 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BJT CE DC Bias - ENG29 2121</title>
+  <title>Lab 02: BJT DC Bias Web App — ENG29 2121</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <main class="container">
-    <h1>ตัวคำนวณจุดทำงาน DC วงจร BJT Common-Emitter (Voltage Divider Bias)</h1>
-    <p class="subtitle">ENG29 2121 — ป้อนค่าองค์ประกอบ แล้วกดคำนวณ</p>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" role="img" aria-label="microchip">
+        <rect x="12" y="12" width="24" height="24" rx="4" class="logo-body"/>
+        <rect x="19" y="19" width="10" height="10" rx="2" class="logo-core"/>
+        <path d="M18 12V6M24 12V6M30 12V6M18 36v6M24 36v6M30 36v6M12 18H6M12 24H6M12 30H6M36 18h6M36 24h6M36 30h6" class="logo-pin"/>
+      </svg>
+      <div class="brand-text">
+        <h1>Lab 02: BJT DC Bias Web App</h1>
+        <p>ENG29 2121 &ndash; Common Emitter (Voltage Divider Bias)</p>
+      </div>
+    </div>
+    <div class="course-badge">
+      <span class="code-icon">&lt;/&gt;</span>
+      <span>Computer Programming for Electrical Engineers</span>
+    </div>
+  </header>
 
-    <section class="card">
-      <h2>ข้อมูลนำเข้า</h2>
-      <form method="post" class="form-grid" autocomplete="off">
-        {% for name, label, hint in fields %}
-        <label class="field">
-          <span class="label">{{ label }}</span>
-          <input type="text" name="{{ name }}" value="{{ form.get(name, '') }}" autocomplete="off">
-          <span class="hint">{{ hint }}</span>
-        </label>
-        {% endfor %}
-        <div class="actions">
-          <button type="submit">คำนวณจุดทำงาน (Calculate)</button>
-        </div>
-      </form>
-    </section>
-
-    {% if errors %}
-    <section class="card error-box" aria-label="validation-errors">
-      <h2>ข้อมูลไม่ถูกต้อง</h2>
-      <div class="error">
-        <ul>
+  <main class="layout">
+    <div class="columns">
+      <section class="card">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6"/></svg>Input Parameters</h2>
+        <form method="post" class="param-form" autocomplete="off">
+          {% for f in fields %}
+          <div class="prow">
+            <label class="plabel" for="{{ f.name }}">
+              <span class="sym">{{ f.sym }}{% if f.sub %}<sub>{{ f.sub }}</sub>{% endif %}</span>
+              <span class="pdesc">{{ f.desc }}</span>
+            </label>
+            <input class="pval" type="text" id="{{ f.name }}" name="{{ f.name }}"
+                   value="{{ form.get(f.name, '') }}" autocomplete="off">
+            {% if f.kind == "none" %}
+            <span class="unit-static">&mdash;</span>
+            {% else %}
+            <select class="unit" name="{{ f.name }}_unit">
+              {% for key, label in f.units %}
+              <option value="{{ key }}" {% if units.get(f.name, f.default_unit) == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="calc">Calculate DC Bias</button>
+        </form>
+        {% if errors %}
+        <ul class="error">
           {% for err in errors %}
           <li>{{ err }}</li>
           {% endfor %}
         </ul>
-      </div>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.5l2.5 8M16 7.5l-2.5 8"/></svg>Circuit: Common-Emitter Amplifier</h2>
+        <div class="diagram">{{ schematic }}</div>
+      </section>
+
+      <section class="card">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>DC Bias Results</h2>
+        {% if results %}
+        <table class="result-table">
+          <tbody>
+            <tr><td>V<sub>B</sub></td><td class="num">{{ results.vb }}</td><td class="unitc">V</td></tr>
+            <tr><td>V<sub>E</sub></td><td class="num">{{ results.ve }}</td><td class="unitc">V</td></tr>
+            <tr><td>V<sub>C</sub></td><td class="num">{{ results.vc }}</td><td class="unitc">V</td></tr>
+            <tr><td>V<sub>CE</sub></td><td class="num">{{ results.vce }}</td><td class="unitc">V</td></tr>
+            <tr><td>I<sub>B</sub></td><td class="num">{{ results.ib }}</td><td class="unitc">&micro;A</td></tr>
+            <tr><td>I<sub>C</sub></td><td class="num">{{ results.ic }}</td><td class="unitc">mA</td></tr>
+            <tr><td>I<sub>E</sub></td><td class="num">{{ results.ie }}</td><td class="unitc">mA</td></tr>
+          </tbody>
+        </table>
+        <div class="status status-{{ results.status.kind }}">
+          <div class="status-title">{{ results.status.icon }} {{ results.status.title }}</div>
+          <div class="status-detail">{{ results.status.detail }}</div>
+          <div class="status-compare">Thevenin &asymp; Nodal:
+            <strong>{{ 'ตรงกัน' if results.all_match else 'ไม่ตรงกัน' }}</strong>
+            (&Delta; สูงสุด {{ results.max_diff }})</div>
+        </div>
+        {% else %}
+        <p class="placeholder">กด “Calculate DC Bias” เพื่อแสดงผลจุดทำงาน DC</p>
+        {% endif %}
+      </section>
+    </div>
+
+    {% if loadline %}
+    <section class="card">
+      <h2>กราฟ load line และจุดทำงาน Q</h2>
+      <div class="diagram">{{ loadline }}</div>
     </section>
     {% endif %}
 
-    <section class="card diagram">
-      <h2>ผังวงจร (Schematic)</h2>
-      {{ schematic }}
-    </section>
-
-    {% if results %}
-    {% set p = results.primary %}
-    <section class="card results">
-      <h2>ผลลัพธ์จุดทำงาน DC</h2>
-      <div class="badge badge-{{ p.region }}">สถานะ: {{ results.region_label }} ({{ p.region }})</div>
-
-      {% if p.warnings %}
-      <div class="warnings">
-        <h3>คำเตือน (Warnings)</h3>
-        <ul>
-          {% for w in p.warnings %}
-          <li>{{ w }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-
-      <table class="result-table">
-        <thead><tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr></thead>
-        <tbody>
-          <tr><td>I<sub>B</sub></td><td>{{ results.fmt(results.ib_uA) }} µA ({{ results.fmt(results.ib_mA) }} mA)</td><td>µA / mA</td></tr>
-          <tr><td>I<sub>C</sub></td><td>{{ results.fmt(results.ic_mA) }}</td><td>mA</td></tr>
-          <tr><td>I<sub>E</sub></td><td>{{ results.fmt(results.ie_mA) }}</td><td>mA</td></tr>
-          <tr><td>V<sub>B</sub></td><td>{{ results.fmt(p.vb_v) }}</td><td>V</td></tr>
-          <tr><td>V<sub>E</sub></td><td>{{ results.fmt(p.ve_v) }}</td><td>V</td></tr>
-          <tr><td>V<sub>C</sub></td><td>{{ results.fmt(p.vc_v) }}</td><td>V</td></tr>
-          <tr><td>V<sub>CE</sub></td><td>{{ results.fmt(p.vce_v) }}</td><td>V</td></tr>
-        </tbody>
-      </table>
-    </section>
-
     <section class="card compare">
       <h2>เปรียบเทียบกับการคำนวณอิสระ (Thevenin vs Nodal Analysis)</h2>
+      {% if results %}
       <p class="verdict {{ 'ok' if results.all_match else 'bad' }}">
         ผลการเปรียบเทียบ: <strong>{{ 'ตรงกัน' if results.all_match else 'ไม่ตรงกัน' }}</strong>
       </p>
       <table class="compare-table">
-        <thead><tr><th>ปริมาณ</th><th>Thevenin (หลัก)</th><th>Nodal (อิสระ)</th><th>ผลต่าง |Δ|</th><th>สรุป</th></tr></thead>
+        <thead><tr><th>ปริมาณ</th><th>Thevenin (หลัก)</th><th>Nodal (อิสระ)</th><th>ผลต่าง |&Delta;|</th><th>สรุป</th></tr></thead>
         <tbody>
           {% for row in results.rows %}
           <tr>
             <td>{{ row.name }}</td>
-            <td>{{ results.fmt(row.primary) }}</td>
-            <td>{{ results.fmt(row.independent) }}</td>
+            <td>{{ '%.6g'|format(row.primary) }}</td>
+            <td>{{ '%.6g'|format(row.independent) }}</td>
             <td>{{ '%.3e'|format(row.difference) }}</td>
             <td>{{ 'ตรงกัน' if row.matches else 'ไม่ตรงกัน' }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <p class="note">เกณฑ์: ต่างสัมพัทธ์ ≤ 1e-6 (หรือสัมบูรณ์ ≤ 1e-12 เมื่อค่าใกล้ศูนย์)</p>
+      <p class="note">เกณฑ์: ต่างสัมพัทธ์ &le; 1e-6 (หรือสัมบูรณ์ &le; 1e-12 เมื่อค่าใกล้ศูนย์)</p>
+      {% endif %}
     </section>
-    {% endif %}
 
-    {% if loadline %}
-    <section class="card diagram">
-      <h2>กราฟ load line และจุดทำงาน Q</h2>
-      {{ loadline }}
+    <section class="card goal">
+      <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>Week 2 Goal</h2>
+      <p><strong>Rough target for this lab:</strong> Build a Flask web app that takes the circuit parameters,
+        computes the BJT DC bias (V<sub>B</sub>, V<sub>E</sub>, V<sub>C</sub>, V<sub>CE</sub>,
+        I<sub>B</sub>, I<sub>C</sub>, I<sub>E</sub>) for a common-emitter amplifier with voltage-divider bias,
+        and displays the results.</p>
     </section>
-    {% endif %}
 
     <footer class="card foot">
       <h3>สูตรอ้างอิง (Thevenin)</h3>
-      <p><code>VBB = VCC·R2/(R1+R2)</code>, <code>RB = R1||R2</code>, <code>IB = (VBB−VBE)/(RB + (1+β)RE)</code></p>
-      <p><code>IC = βIB</code>, <code>IE = (1+β)IB</code>, <code>VC = VCC−IC·RC</code>, <code>VE = IE·RE</code>, <code>VCE = VC−VE</code></p>
+      <p><code>VBB = VCC&middot;R2/(R1+R2)</code>, <code>RB = R1||R2</code>, <code>IB = (VBB&minus;VBE)/(RB + (1+&beta;)RE)</code></p>
+      <p><code>IC = &beta;IB</code>, <code>IE = (1+&beta;)IB</code>, <code>VC = VCC&minus;IC&middot;RC</code>, <code>VE = IE&middot;RE</code>, <code>VCE = VC&minus;VE</code></p>
       <p class="note">สมมติ VBE คงที่ตามที่ป้อน และใช้แบบจำลองเชิงเส้น (หากอิ่มตัว/คัตออฟ ค่าที่แสดงเป็นผลจากแบบจำลองและมีคำเตือน)</p>
     </footer>
   </main>
