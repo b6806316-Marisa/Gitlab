@@ -42,62 +42,77 @@ def _circle(cx, cy, r, cls="node"):
     return f'<circle cx="{cx}" cy="{cy}" r="{r}" class="{cls}" />'
 
 
+def _zigzag(x, y1, y2, amplitude=7, teeth=6):
+    """เส้นซิกแซ็กแนวตั้ง สำหรับสัญลักษณ์ตัวต้านทาน"""
+    step = (y2 - y1) / (teeth * 2)
+    points = [f"M {x},{y1}"]
+    direction = -1
+    for i in range(teeth * 2):
+        points.append(f"L {x + direction * amplitude},{y1 + step * (i + 1)}")
+        direction = -direction
+    return " ".join(points)
+
+
 def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None):
-    """ผังวงจร BJT common-emitter แบบ voltage divider bias"""
+    """ผังวงจร BJT common-emitter แบบ voltage divider bias (ตามแบบฝึกแลป)"""
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SCHEMATIC_VIEWBOX}" '
         f'role="img" aria-label="ผังวงจร BJT common-emitter แบบ voltage divider bias">'
     ]
 
-    # แหล่งจ่ายและกราวด์
-    parts.append(_line(70, 50, 490, 50))
-    parts.append(_line(70, 330, 490, 330))
-    parts.append(_text(20, 36, f"VCC = {_fmt_voltage(vcc)}", cls="lbl"))
-    for i, width in enumerate((24, 16, 8)):
-        parts.append(_line(110 - width // 2, 330 + 8 + i * 6, 110 + width // 2, 330 + 8 + i * 6))
+    # ราง VCC และรางกราวด์
+    parts.append(_line(60, 40, 500, 40))
+    parts.append(_line(60, 345, 500, 345))
+    parts.append(_text(60, 28, f"VCC = {_fmt_voltage(vcc)}", cls="lbl"))
+    for i, width in enumerate((26, 18, 10)):
+        parts.append(_line(130 - width // 2, 353 + i * 7, 130 + width // 2, 353 + i * 7))
 
-    # สาขา R1 -> เบส
-    parts.append(_line(110, 50, 110, 70))
-    parts.append(_rect(98, 70, 24, 70))
-    parts.append(_line(110, 140, 110, 200))
-    parts.append(_text(135, 96, "R1", cls="lbl"))
-    parts.append(_text(135, 114, _fmt_resistance(r1), cls="val"))
-
-    # สาขา R2 -> กราวด์
-    parts.append(_rect(98, 215, 24, 70))
-    parts.append(_line(110, 285, 110, 330))
-    parts.append(_text(135, 241, "R2", cls="lbl"))
-    parts.append(_text(135, 259, _fmt_resistance(r2), cls="val"))
+    # สาขา R1 -> เบส และ R2 -> กราวด์
+    parts.append(_line(130, 40, 130, 60))
+    parts.append(f'<path d="{_zigzag(130, 60, 130)}" class="res" />')
+    parts.append(_line(130, 130, 130, 190))
+    parts.append(_text(150, 88, "R1", cls="lbl"))
+    parts.append(_text(150, 106, _fmt_resistance(r1), cls="val"))
+    parts.append(f'<path d="{_zigzag(130, 220, 290)}" class="res" />')
+    parts.append(_line(130, 190, 130, 220))
+    parts.append(_line(130, 290, 130, 345))
+    parts.append(_text(150, 248, "R2", cls="lbl"))
+    parts.append(_text(150, 266, _fmt_resistance(r2), cls="val"))
 
     # สาขา RC -> คอลเลกเตอร์
-    parts.append(_line(430, 50, 430, 70))
-    parts.append(_rect(418, 70, 24, 70))
-    parts.append(_line(225, 140, 430, 140))
-    parts.append(_text(455, 96, "RC", cls="lbl"))
-    parts.append(_text(455, 114, _fmt_resistance(rc), cls="val"))
+    parts.append(_line(430, 40, 430, 60))
+    parts.append(f'<path d="{_zigzag(430, 60, 120)}" class="res" />')
+    parts.append(_line(245, 120, 430, 120))
+    parts.append(_text(450, 88, "RC", cls="lbl"))
+    parts.append(_text(450, 106, _fmt_resistance(rc), cls="val"))
 
-    # ทรานซิสเตอร์
-    parts.append(_circle(225, 200, 30, cls="bjtt"))
-    parts.append(_line(110, 200, 195, 200))
-    parts.append(_line(225, 170, 225, 140))
-    parts.append(_line(225, 230, 225, 262))
-    parts.append('<polygon points="219,248 231,248 225,259" class="bjtt" />')
-    parts.append(_text(264, 208, f"β = {beta:g}", cls="val"))
+    # ทรานซิสเตอร์ Q1 (NPN)
+    parts.append(_circle(245, 200, 30, cls="bjtt"))
+    parts.append(_line(130, 190, 215, 190))
+    parts.append(_line(215, 176, 215, 204))
+    parts.append(_line(215, 182, 245, 158))
+    parts.append(_line(245, 158, 245, 120))
+    parts.append(_line(215, 208, 245, 232))
+    parts.append(_line(245, 232, 245, 262))
+    parts.append('<polygon points="236,220 248,214 252,228" class="bjtt" />')
+    parts.append(_text(272, 196, "Q1", cls="lbl"))
+    parts.append(_text(272, 214, "NPN", cls="val"))
+    parts.append(_text(272, 232, f"(β = {beta:g})", cls="val"))
 
     # สาขา RE -> กราวด์
-    parts.append(_rect(213, 275, 24, 40))
-    parts.append(_line(225, 315, 225, 330))
-    parts.append(_text(250, 292, "RE", cls="lbl"))
-    parts.append(_text(250, 310, _fmt_resistance(re), cls="val"))
+    parts.append(f'<path d="{_zigzag(245, 262, 320)}" class="res" />')
+    parts.append(_line(245, 320, 245, 345))
+    parts.append(_text(262, 285, "RE", cls="lbl"))
+    parts.append(_text(262, 303, _fmt_resistance(re), cls="val"))
 
     # เบสและ VBE
-    parts.append(_circle(110, 200, 4))
-    parts.append(_text(112, 168, f"VBE = {_fmt_voltage(vbe)}", cls="val"))
+    parts.append(_circle(130, 190, 4))
+    parts.append(_text(135, 172, f"VBE = {_fmt_voltage(vbe)}", cls="val"))
 
     if nodes:
-        parts.append(_text(106, 186, f"VB = {nodes['vb_v']:.3g} V", anchor="end", cls="nodeval"))
-        parts.append(_text(208, 302, f"VE = {nodes['ve_v']:.3g} V", anchor="end", cls="nodeval"))
-        parts.append(_text(428, 158, f"VC = {nodes['vc_v']:.3g} V", anchor="end", cls="nodeval"))
+        parts.append(_text(125, 180, f"VB = {nodes['vb_v']:.3g} V", anchor="end", cls="nodeval"))
+        parts.append(_text(250, 250, f"VE = {nodes['ve_v']:.3g} V", cls="nodeval"))
+        parts.append(_text(425, 145, f"VC = {nodes['vc_v']:.3g} V", anchor="end", cls="nodeval"))
 
     parts.append("</svg>")
     return "".join(parts)

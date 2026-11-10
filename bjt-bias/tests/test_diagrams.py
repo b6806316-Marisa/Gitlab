@@ -40,6 +40,12 @@ def _find_overlaps(svg):
 
 
 class TestSchematicSvg(unittest.TestCase):
+    def test_matches_lab_reference_labels(self):
+        svg = schematic_svg(vcc=12.0, r1=100000.0, r2=22000.0, rc=2200.0, re=1000.0, beta=100.0, vbe=0.7)
+        for token in ("Q1", "NPN", "R1", "R2", "RC", "RE", "VCC = 12 V",
+                      "100 kΩ", "22 kΩ", "2.2 kΩ", "1 kΩ", "(β = 100)"):
+            self.assertIn(token, svg)
+
     def test_is_svg_document(self):
         svg = schematic_svg(**DEFAULTS)
         self.assertTrue(svg.lstrip().startswith("<svg"))
