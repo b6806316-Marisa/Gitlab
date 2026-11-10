@@ -6,6 +6,38 @@ from diagrams import load_line_svg, schematic_svg
 
 DEFAULTS = dict(vcc=12.0, r1=47000.0, r2=10000.0, rc=2200.0, re=470.0, beta=150.0, vbe=0.7)
 
+CHAR_WIDTH = 7.0
+LINE_TOLERANCE = 12.0
+
+
+def _find_overlaps(svg):
+    """หา text ที่อยู่บรรทัดเดียวกันแล้วช่วง x ทับกัน"""
+    texts = []
+    for match in re.finditer(r'<text x="(-?[\d.]+)" y="(-?[\d.]+)" text-anchor="(\w+)"[^>]*>([^<]*)</text>', svg):
+        x = float(match.group(1))
+        y = float(match.group(2))
+        anchor = match.group(3)
+        content = match.group(4)
+        width = CHAR_WIDTH * len(content)
+        if anchor == "end":
+            span = (x - width, x)
+        elif anchor == "middle":
+            span = (x - width / 2, x + width / 2)
+        else:
+            span = (x, x + width)
+        texts.append((content, y, span))
+
+    overlaps = []
+    for i in range(len(texts)):
+        for j in range(i + 1, len(texts)):
+            content_a, y_a, span_a = texts[i]
+            content_b, y_b, span_b = texts[j]
+            if abs(y_a - y_b) >= LINE_TOLERANCE:
+                continue
+            if span_a[0] < span_b[1] and span_b[0] < span_a[1]:
+                overlaps.append(f"{content_a!r} ทับ {content_b!r}")
+    return overlaps
+
 
 class TestSchematicSvg(unittest.TestCase):
     def test_is_svg_document(self):
@@ -35,6 +67,16 @@ class TestSchematicSvg(unittest.TestCase):
         self.assertNotIn("VB =", svg)
         self.assertNotIn("VE =", svg)
         self.assertNotIn("VC =", svg)
+
+    def test_labels_do_not_overlap(self):
+        svg = schematic_svg(**DEFAULTS, nodes={"vb_v": 1.959, "ve_v": 1.259, "vc_v": 6.146})
+        overlaps = _find_overlaps(svg)
+        self.assertEqual(overlaps, [], "ป้ายในผังวงจรทับกัน: " + "; ".join(overlaps))
+
+    def test_load_line_labels_do_not_overlap(self):
+        svg = load_line_svg(vcc=12.0, rc=2200.0, re=470.0, q_ic=2.6609586538184696e-3, q_vce=4.886902723856055)
+        overlaps = _find_overlaps(svg)
+        self.assertEqual(overlaps, [], "ป้ายในกราฟทับกัน: " + "; ".join(overlaps))
 
     def test_contains_no_script_or_untrusted_markup(self):
         svg = schematic_svg(**DEFAULTS, nodes={"vb_v": 1.959, "ve_v": 1.259, "vc_v": 6.146})

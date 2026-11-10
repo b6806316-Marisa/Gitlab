@@ -96,7 +96,7 @@ def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None):
 
     if nodes:
         parts.append(_text(106, 186, f"VB = {nodes['vb_v']:.3g} V", anchor="end", cls="nodeval"))
-        parts.append(_text(222, 258, f"VE = {nodes['ve_v']:.3g} V", anchor="end", cls="nodeval"))
+        parts.append(_text(208, 302, f"VE = {nodes['ve_v']:.3g} V", anchor="end", cls="nodeval"))
         parts.append(_text(428, 158, f"VC = {nodes['vc_v']:.3g} V", anchor="end", cls="nodeval"))
 
     parts.append("</svg>")
