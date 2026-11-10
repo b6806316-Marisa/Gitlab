@@ -1,0 +1,41 @@
+:root {
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2430;
+  --muted: #5b6475;
+  --accent: #1f6feb;
+  --ok: #1a7f37;
+  --bad: #cf222e;
+  --warn: #9a6700;
+  --border: #d8dee9;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+.container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.subtitle { color: var(--muted); margin: 0 0 16px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field .label { font-weight: 600; }
+.field input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
+.field .hint { color: var(--muted); font-size: .85rem; }
+.actions { grid-column: 1 / -1; }
+button { background: var(--accent); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+button:hover { filter: brightness(0.95); }
+.error { border-color: #f1b3b8; background: #fff5f5; }
+.error h2 { color: var(--bad); margin-top: 0; }
+.badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-weight: 700; margin-bottom: 10px; }
+.badge-active { background: #dafbe1; color: var(--ok); }
+.badge-cutoff { background: #fff8c5; color: var(--warn); }
+.badge-saturation { background: #ffebe9; color: var(--bad); }
+.warnings { background: #fff8c5; border: 1px solid #e3c04b; border-radius: 8px; padding: 8px 12px; margin: 8px 0 12px; }
+.warnings h3 { margin: 0 0 4px; font-size: 1rem; color: #7a5200; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+th { background: #f0f3f8; }
+.result-table td:nth-child(2), .compare-table td:nth-child(n+2) { font-family: Consolas, "Courier New", monospace; }
+.verdict.ok { color: var(--ok); }
+.verdict.bad { color: var(--bad); }
+.note { color: var(--muted); font-size: .9rem; }
+.foot code { background: #f0f3f8; padding: 1px 5px; border-radius: 4px; }

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT CE DC Bias - ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <h1>ตัวคำนวณจุดทำงาน DC วงจร BJT Common-Emitter (Voltage Divider Bias)</h1>
+    <p class="subtitle">ENG29 2121 — ป้อนค่าองค์ประกอบ แล้วกดคำนวณ</p>
+
+    <section class="card">
+      <h2>ข้อมูลนำเข้า</h2>
+      <form method="post" class="form-grid">
+        {% for name, label, hint in fields %}
+        <label class="field">
+          <span class="label">{{ label }}</span>
+          <input type="text" name="{{ name }}" value="{{ form.get(name, '') }}">
+          <span class="hint">{{ hint }}</span>
+        </label>
+        {% endfor %}
+        <div class="actions">
+          <button type="submit">คำนวณจุดทำงาน (Calculate)</button>
+        </div>
+      </form>
+    </section>
+
+    {% if errors %}
+    <section class="card error-box" aria-label="validation-errors">
+      <h2>ข้อมูลไม่ถูกต้อง</h2>
+      <div class="error">
+        <ul>
+          {% for err in errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if results %}
+    {% set p = results.primary %}
+    <section class="card results">
+      <h2>ผลลัพธ์จุดทำงาน DC</h2>
+      <div class="badge badge-{{ p.region }}">สถานะ: {{ results.region_label }} ({{ p.region }})</div>
+
+      {% if p.warnings %}
+      <div class="warnings">
+        <h3>คำเตือน (Warnings)</h3>
+        <ul>
+          {% for w in p.warnings %}
+          <li>{{ w }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <table class="result-table">
+        <thead><tr><th>ปริมาณ</th><th>ค่า</th><th>หน่วย</th></tr></thead>
+        <tbody>
+          <tr><td>I<sub>B</sub></td><td>{{ results.fmt(results.ib_uA) }} µA ({{ results.fmt(results.ib_mA) }} mA)</td><td>µA / mA</td></tr>
+          <tr><td>I<sub>C</sub></td><td>{{ results.fmt(results.ic_mA) }}</td><td>mA</td></tr>
+          <tr><td>I<sub>E</sub></td><td>{{ results.fmt(results.ie_mA) }}</td><td>mA</td></tr>
+          <tr><td>V<sub>B</sub></td><td>{{ results.fmt(p.vb_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>E</sub></td><td>{{ results.fmt(p.ve_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>C</sub></td><td>{{ results.fmt(p.vc_v) }}</td><td>V</td></tr>
+          <tr><td>V<sub>CE</sub></td><td>{{ results.fmt(p.vce_v) }}</td><td>V</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card compare">
+      <h2>เปรียบเทียบกับการคำนวณอิสระ (Thevenin vs Nodal Analysis)</h2>
+      <p class="verdict {{ 'ok' if results.all_match else 'bad' }}">
+        ผลการเปรียบเทียบ: <strong>{{ 'ตรงกัน' if results.all_match else 'ไม่ตรงกัน' }}</strong>
+      </p>
+      <table class="compare-table">
+        <thead><tr><th>ปริมาณ</th><th>Thevenin (หลัก)</th><th>Nodal (อิสระ)</th><th>ผลต่าง |Δ|</th><th>สรุป</th></tr></thead>
+        <tbody>
+          {% for row in results.rows %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td>{{ results.fmt(row.primary) }}</td>
+            <td>{{ results.fmt(row.independent) }}</td>
+            <td>{{ '%.3e'|format(row.difference) }}</td>
+            <td>{{ 'ตรงกัน' if row.matches else 'ไม่ตรงกัน' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="note">เกณฑ์: ต่างสัมพัทธ์ ≤ 1e-6 (หรือสัมบูรณ์ ≤ 1e-12 เมื่อค่าใกล้ศูนย์)</p>
+    </section>
+    {% endif %}
+
+    <footer class="card foot">
+      <h3>สูตรอ้างอิง (Thevenin)</h3>
+      <p><code>VBB = VCC·R2/(R1+R2)</code>, <code>RB = R1||R2</code>, <code>IB = (VBB−VBE)/(RB + (1+β)RE)</code></p>
+      <p><code>IC = βIB</code>, <code>IE = (1+β)IB</code>, <code>VC = VCC−IC·RC</code>, <code>VE = IE·RE</code>, <code>VCE = VC−VE</code></p>
+      <p class="note">สมมติ VBE คงที่ตามที่ป้อน และใช้แบบจำลองเชิงเส้น (หากอิ่มตัว/คัตออฟ ค่าที่แสดงเป็นผลจากแบบจำลองและมีคำเตือน)</p>
+    </footer>
+  </main>
+</body>
+</html>
