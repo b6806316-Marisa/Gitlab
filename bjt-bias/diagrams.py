@@ -95,9 +95,9 @@ def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None):
     parts.append(_line(215, 208, 245, 232))
     parts.append(_line(245, 232, 245, 262))
     parts.append('<polygon points="236,220 248,214 252,228" class="bjtt" />')
-    parts.append(_text(272, 196, "Q1", cls="lbl"))
-    parts.append(_text(272, 214, "NPN", cls="val"))
-    parts.append(_text(272, 232, f"(β = {beta:g})", cls="val"))
+    parts.append(_text(288, 196, "Q1", cls="lbl"))
+    parts.append(_text(288, 214, "NPN", cls="val"))
+    parts.append(_text(288, 232, f"(β = {beta:g})", cls="val"))
 
     # สาขา RE -> กราวด์
     parts.append(f'<path d="{_zigzag(245, 262, 320)}" class="res" />')
