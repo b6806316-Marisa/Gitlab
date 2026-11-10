@@ -4,9 +4,17 @@
 
 ## โครงสร้าง
 - `bjt.py` — ตรรกะทางวิศวกรรม (คำนวณ/ตรวจสอบ/เปรียบเทียบ) แยกจากเว็บ
+- `diagrams.py` — สร้างผังวงจรและกราฟ load line เป็น inline SVG (ไม่พึ่ง library ภายนอก)
 - `app.py` — Flask routes
 - `templates/index.html`, `static/style.css` — ส่วนแสดงผล
 - `tests/` — ชุดทดสอบ (`unittest`)
+
+## สิ่งที่หน้าเว็บแสดง
+1. ฟอร์มป้อนค่า 7 ตัว (พร้อมค่าเริ่มต้นที่อยู่ในเขตแอคทีฟ)
+2. **ผังวงจร (SVG)** — วงจร CE แบบ voltage divider bias พร้อมค่าที่ป้อน และค่าโหนด VB/VE/VC เมื่อมีผลลัพธ์
+3. ผลจุดทำงาน DC พร้อมหน่วย + สถานะ (Active / Cutoff / Saturation) + คำเตือน
+4. ตารางเทียบ Thevenin กับ Nodal analysis (สรุปว่า "ตรงกัน" หรือ "ไม่ตรงกัน")
+5. **กราฟ load line (SVG)** — เส้น `VCE = VCC − IC·(RC+RE)` พร้อมจุด Q; ถ้า Q อยู่นอกเส้นจะ clamp ที่ขอบกราฟและมีหมายเหตุกำกับ
 
 ## การติดตั้งและรัน (Windows / PowerShell)
 ```powershell

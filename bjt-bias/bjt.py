@@ -60,31 +60,38 @@ def parse_input(raw):
     for field in FIELD_ORDER:
         label = FIELD_LABELS[field]
         text = str(raw.get(field, "")).strip()
+        if not text:
+            values[field] = None
+            errors.append(f"กรุณาระบุค่า {label}")
+            continue
         try:
-            values[field] = float(text or "nan")
+            value = float(text)
         except (TypeError, ValueError):
             values[field] = None
             errors.append(f"{label} ต้องเป็นตัวเลขที่ถูกต้อง")
+            continue
+        if not math.isfinite(value):
+            values[field] = None
+            errors.append(f"{label} ต้องเป็นตัวเลขที่ถูกต้อง")
+            continue
+        values[field] = value
 
     vcc = values["vcc"]
-    if vcc is not None and not (math.isfinite(vcc) and vcc > 0):
+    if vcc is not None and vcc <= 0:
         errors.append("VCC ต้องมีค่ามากกว่าศูนย์")
 
     for field in ("r1", "r2", "rc", "re"):
         value = values[field]
-        if value is not None and not (math.isfinite(value) and value > 0):
+        if value is not None and value <= 0:
             errors.append(f"{FIELD_LABELS[field]} ต้องมีค่ามากกว่าศูนย์")
 
     beta = values["beta"]
-    if beta is not None and not (math.isfinite(beta) and beta > 0):
+    if beta is not None and beta <= 0:
         errors.append("beta ต้องมีค่ามากกว่าศูนย์")
 
     vbe = values["vbe"]
-    if vcc is not None and vbe is not None:
-        if not math.isfinite(vbe):
-            errors.append("VBE ต้องเป็นตัวเลขที่ถูกต้อง")
-        elif not (0 <= vbe < vcc):
-            errors.append("VBE ต้องอยู่ระหว่าง 0 ถึง VCC (น้อยกว่า VCC)")
+    if vcc is not None and vbe is not None and not (0 <= vbe < vcc):
+        errors.append("VBE ต้องอยู่ระหว่าง 0 ถึง VCC (น้อยกว่า VCC)")
 
     if errors:
         raise BiasError(errors)

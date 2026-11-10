@@ -50,6 +50,20 @@ class TestParseInput(unittest.TestCase):
         self.assertAlmostEqual(parsed.beta, 150.0)
         self.assertAlmostEqual(parsed.vbe_v, 0.7)
 
+    def test_blank_field_says_required(self):
+        with self.assertRaises(BiasError) as context:
+            parse_input(raw_with(r1=""))
+        message = " ".join(context.exception.errors)
+        self.assertIn("กรุณาระบุค่า R1", message)
+        self.assertNotIn("มากกว่าศูนย์", message)
+
+    def test_non_finite_number_says_invalid_number(self):
+        for text in ("nan", "inf"):
+            with self.subTest(text=text):
+                with self.assertRaises(BiasError) as context:
+                    parse_input(raw_with(vcc=text))
+                self.assertIn("VCC ต้องเป็นตัวเลขที่ถูกต้อง", " ".join(context.exception.errors))
+
     def test_missing_field_is_rejected(self):
         with self.assertRaises(BiasError) as context:
             parse_input(raw_with(r2=None))
