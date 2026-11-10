@@ -1,6 +1,17 @@
+import math
 import unittest
 
-from bjt import FIELD_ORDER, BiasError, BiasInput, parse_input
+from bjt import (
+    FIELD_ORDER,
+    BiasError,
+    BiasInput,
+    BiasResult,
+    VCE_SAT_V,
+    VCE_NEAR_V,
+    classify,
+    parse_input,
+    solve_thevenin,
+)
 
 
 DEFAULT_RAW = {
@@ -81,3 +92,59 @@ class TestParseInput(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class TestSolveThevenin(unittest.TestCase):
+    def test_known_active_case(self):
+        b = BiasInput(12.0, 47000.0, 10000.0, 2200.0, 470.0, 150.0, 0.7)
+        r = solve_thevenin(b)
+        self.assertAlmostEqual(r.ib_a, 1.77397243587898e-05, delta=1e-12)
+        self.assertAlmostEqual(r.ic_a, 0.0026609586538184696, delta=1e-9)
+        self.assertAlmostEqual(r.ie_a, 0.0026786983781772597, delta=1e-9)
+        self.assertAlmostEqual(r.vce_v, 4.886902723856055, delta=1e-6)
+        self.assertAlmostEqual(r.vb_v, 1.958988237743312, delta=1e-6)
+        self.assertAlmostEqual(r.ve_v, 1.2589882377433121, delta=1e-6)
+        self.assertAlmostEqual(r.vc_v, 6.145890961599367, delta=1e-6)
+        self.assertEqual(r.region, "active")
+        self.assertEqual(r.warnings, ())
+
+    def test_cutoff_returns_zero_currents(self):
+        b = BiasInput(12.0, 47000.0, 1000.0, 2200.0, 470.0, 150.0, 0.7)
+        r = solve_thevenin(b)
+        self.assertEqual(r.ib_a, 0.0)
+        self.assertEqual(r.ic_a, 0.0)
+        self.assertEqual(r.ie_a, 0.0)
+        self.assertEqual(r.ve_v, 0.0)
+        self.assertAlmostEqual(r.vce_v, 12.0)
+        self.assertAlmostEqual(r.vb_v, 0.25)
+        self.assertAlmostEqual(r.vc_v, 12.0)
+        self.assertEqual(r.region, "cutoff")
+        self.assertTrue(len(r.warnings) >= 1)
+
+    def test_saturation_is_flagged_not_clamped(self):
+        b = BiasInput(12.0, 10000.0, 10000.0, 10000.0, 100.0, 150.0, 0.7)
+        r = solve_thevenin(b)
+        self.assertLess(r.vce_v, 0.2)
+        self.assertEqual(r.region, "saturation")
+        self.assertTrue(len(r.warnings) >= 1)
+        expected_vce = b.vcc_v - r.ic_a * b.rc_ohm - r.ie_a * b.re_ohm
+        self.assertAlmostEqual(r.vce_v, expected_vce, delta=1e-9)
+
+    def test_beta_extremes_are_finite(self):
+        b1 = BiasInput(12.0, 47000.0, 10000.0, 2200.0, 470.0, 1.0, 0.7)
+        r1 = solve_thevenin(b1)
+        for x in (r1.ib_a, r1.ic_a, r1.ie_a, r1.vce_v, r1.vb_v, r1.ve_v, r1.vc_v):
+            self.assertTrue(math.isfinite(x))
+        self.assertEqual(r1.region, "active")
+        b2 = BiasInput(12.0, 47000.0, 10000.0, 2200.0, 470.0, 1e6, 0.7)
+        r2 = solve_thevenin(b2)
+        for x in (r2.ib_a, r2.ic_a, r2.ie_a, r2.vce_v, r2.vb_v, r2.ve_v, r2.vc_v):
+            self.assertTrue(math.isfinite(x))
+        self.assertEqual(r2.region, "active")
+
+    def test_classify_boundaries(self):
+        self.assertEqual(classify(0.19), "saturation")
+        self.assertEqual(classify(0.2), "saturation")
+        self.assertEqual(classify(0.21), "active")
+        self.assertEqual(classify(0.49), "active")
+        self.assertEqual(classify(0.5), "active")
+        self.assertEqual(classify(-1.0), "saturation")

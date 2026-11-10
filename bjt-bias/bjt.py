@@ -13,6 +13,9 @@ FIELD_LABELS = {
     "vbe": "VBE",
 }
 
+VCE_SAT_V = 0.2
+VCE_NEAR_V = 0.5
+
 
 class BiasError(ValueError):
     """แรงดัน/ความต้านทาน/พารามิเตอร์ที่ผู้ใช้ป้อนไม่ถูกต้อง"""
@@ -31,6 +34,19 @@ class BiasInput:
     re_ohm: float
     beta: float
     vbe_v: float
+
+
+@dataclass(frozen=True)
+class BiasResult:
+    ib_a: float
+    ic_a: float
+    ie_a: float
+    vce_v: float
+    vb_v: float
+    ve_v: float
+    vc_v: float
+    region: str
+    warnings: tuple[str, ...] = ()
 
 
 def parse_input(raw):
@@ -81,4 +97,55 @@ def parse_input(raw):
         re_ohm=values["re"],
         beta=beta,
         vbe_v=vbe,
+    )
+
+def classify(vce_v):
+    if vce_v <= VCE_SAT_V:
+        return "saturation"
+    return "active"
+
+
+def solve_thevenin(b):
+    vbb = b.vcc_v * b.r2_ohm / (b.r1_ohm + b.r2_ohm)
+    rb = b.r1_ohm * b.r2_ohm / (b.r1_ohm + b.r2_ohm)
+
+    if vbb <= b.vbe_v:
+        warnings = ("ทรานซิสเตอร์อยู่ในภาวะคัตออฟ (cutoff) กระแสแทบเป็นศูนย์",)
+        return BiasResult(
+            ib_a=0.0,
+            ic_a=0.0,
+            ie_a=0.0,
+            vce_v=b.vcc_v,
+            vb_v=vbb,
+            ve_v=0.0,
+            vc_v=b.vcc_v,
+            region="cutoff",
+            warnings=warnings,
+        )
+
+    ib = (vbb - b.vbe_v) / (rb + (1.0 + b.beta) * b.re_ohm)
+    ic = b.beta * ib
+    ie = (1.0 + b.beta) * ib
+    ve = ie * b.re_ohm
+    vb = b.vbe_v + ve
+    vc = b.vcc_v - ic * b.rc_ohm
+    vce = vc - ve
+
+    region = classify(vce)
+    warnings = []
+    if region == "saturation":
+        warnings.append("ทรานซิสเตอร์อิ่มตัว (saturation): ค่า VCE ต่ำกว่า 0.2 V แบบจำลองเชิงเส้นอาจไม่ถูกต้อง แต่แสดงค่าที่คำนวณได้ตามจริง")
+    elif VCE_SAT_V <= vce < VCE_NEAR_V:
+        warnings.append("VCE ใกล้ภาวะอิ่มตัว (near saturation) ควรระวัง headroom")
+
+    return BiasResult(
+        ib_a=ib,
+        ic_a=ic,
+        ie_a=ie,
+        vce_v=vce,
+        vb_v=vb,
+        ve_v=ve,
+        vc_v=vc,
+        region=region,
+        warnings=tuple(warnings),
     )
