@@ -53,6 +53,11 @@ class TestRoutes(unittest.TestCase):
         body = response.get_data(as_text=True)
         self.assertIn('class="error"', body)
 
+    def test_form_disables_browser_autofill(self):
+        response = self.client.get("/")
+        body = response.get_data(as_text=True)
+        self.assertIn('autocomplete="off"', body)
+
     def test_get_shows_schematic(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)

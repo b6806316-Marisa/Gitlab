@@ -13,11 +13,11 @@
 
     <section class="card">
       <h2>ข้อมูลนำเข้า</h2>
-      <form method="post" class="form-grid">
+      <form method="post" class="form-grid" autocomplete="off">
         {% for name, label, hint in fields %}
         <label class="field">
           <span class="label">{{ label }}</span>
-          <input type="text" name="{{ name }}" value="{{ form.get(name, '') }}">
+          <input type="text" name="{{ name }}" value="{{ form.get(name, '') }}" autocomplete="off">
           <span class="hint">{{ hint }}</span>
         </label>
         {% endfor %}
