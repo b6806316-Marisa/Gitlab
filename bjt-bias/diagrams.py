@@ -53,31 +53,42 @@ def _zigzag(x, y1, y2, amplitude=7, teeth=6):
     return " ".join(points)
 
 
-def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None):
-    """ผังวงจร BJT common-emitter แบบ voltage divider bias (ตามแบบฝึกแลป)"""
+def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None, mode="divider", rb=0.0):
+    """ผังวงจร BJT common-emitter ตามโหมด: divider / fixed / emitter"""
+    label = {
+        "divider": "voltage divider bias",
+        "fixed": "fixed bias",
+        "emitter": "emitter bias",
+    }.get(mode, "voltage divider bias")
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SCHEMATIC_VIEWBOX}" '
-        f'role="img" aria-label="ผังวงจร BJT common-emitter แบบ voltage divider bias">'
+        f'role="img" aria-label="ผังวงจร BJT common-emitter แบบ {label}">'
     ]
+
+    ground_x = 130 if mode == "divider" else 245
 
     # ราง VCC และรางกราวด์
     parts.append(_line(60, 40, 500, 40))
     parts.append(_line(60, 345, 500, 345))
     parts.append(_text(60, 28, f"VCC = {_fmt_voltage(vcc)}", cls="lbl"))
     for i, width in enumerate((26, 18, 10)):
-        parts.append(_line(130 - width // 2, 353 + i * 7, 130 + width // 2, 353 + i * 7))
+        parts.append(_line(ground_x - width // 2, 353 + i * 7, ground_x + width // 2, 353 + i * 7))
 
-    # สาขา R1 -> เบส และ R2 -> กราวด์
+    # สาขาซ้าย: divider = R1 + R2, fixed/emitter = RB ตัวเดียว
     parts.append(_line(130, 40, 130, 60))
     parts.append(f'<path d="{_zigzag(130, 60, 130)}" class="res" />')
     parts.append(_line(130, 130, 130, 190))
-    parts.append(_text(150, 88, "R1", cls="lbl"))
-    parts.append(_text(150, 106, _fmt_resistance(r1), cls="val"))
-    parts.append(f'<path d="{_zigzag(130, 220, 290)}" class="res" />')
-    parts.append(_line(130, 190, 130, 220))
-    parts.append(_line(130, 290, 130, 345))
-    parts.append(_text(150, 248, "R2", cls="lbl"))
-    parts.append(_text(150, 266, _fmt_resistance(r2), cls="val"))
+    if mode == "divider":
+        parts.append(_text(150, 88, "R1", cls="lbl"))
+        parts.append(_text(150, 106, _fmt_resistance(r1), cls="val"))
+        parts.append(f'<path d="{_zigzag(130, 220, 290)}" class="res" />')
+        parts.append(_line(130, 190, 130, 220))
+        parts.append(_line(130, 290, 130, 345))
+        parts.append(_text(150, 248, "R2", cls="lbl"))
+        parts.append(_text(150, 266, _fmt_resistance(r2), cls="val"))
+    else:
+        parts.append(_text(150, 88, "RB", cls="lbl"))
+        parts.append(_text(150, 106, _fmt_resistance(rb), cls="val"))
 
     # สาขา RC -> คอลเลกเตอร์
     parts.append(_line(430, 40, 430, 60))
@@ -99,11 +110,14 @@ def schematic_svg(vcc, r1, r2, rc, re, beta, vbe, nodes=None):
     parts.append(_text(288, 214, "NPN", cls="val"))
     parts.append(_text(288, 232, f"(β = {beta:g})", cls="val"))
 
-    # สาขา RE -> กราวด์
-    parts.append(f'<path d="{_zigzag(245, 262, 320)}" class="res" />')
-    parts.append(_line(245, 320, 245, 345))
-    parts.append(_text(262, 285, "RE", cls="lbl"))
-    parts.append(_text(262, 303, _fmt_resistance(re), cls="val"))
+    # สาขาอิมิตเตอร์: divider/emitter มี RE, fixed ต่อกราวด์ตรง
+    if mode == "fixed":
+        parts.append(_line(245, 262, 245, 345))
+    else:
+        parts.append(f'<path d="{_zigzag(245, 262, 320)}" class="res" />')
+        parts.append(_line(245, 320, 245, 345))
+        parts.append(_text(262, 285, "RE", cls="lbl"))
+        parts.append(_text(262, 303, _fmt_resistance(re), cls="val"))
 
     # เบสและ VBE
     parts.append(_circle(130, 190, 4))
