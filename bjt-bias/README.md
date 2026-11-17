@@ -96,3 +96,17 @@ cd bjt-bias
 - `305bb14` — feat: route bias modes through the app
 - `6d2e768` — docs: document bias modes, design, and acceptance values
 - `8580d61` — fix: show SI-scaled resistor labels on initial GET page
+- `7b4c0dd` — docs: record rubric checks, AI-assisted scope, and commit SHAs
+- `3835db9` — docs: add A1–A5 acceptance report with web evidence
+
+> SHA ของ HEAD ล่าสุดเช็คด้วย `git rev-parse --short HEAD`
+
+## ส่งขึ้น GitHub (ถ้ายังไม่มี remote)
+
+```powershell
+git remote add origin https://github.com/b6806316-Marisa/Gitlab.git
+git remote -v
+git push -u origin main
+```
+
+ถ้า `origin` มีอยู่แล้วให้ใช้ `git remote set-url origin https://github.com/b6806316-Marisa/Gitlab.git` แทนคำสั่งแรก (คำสั่ง `remote add` จะ error ถ้า remote ชื่อเดียวกันมีอยู่แล้ว)
