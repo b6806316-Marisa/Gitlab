@@ -16,7 +16,7 @@
       </svg>
       <div class="brand-text">
         <h1>Lab 02: BJT DC Bias Web App</h1>
-        <p>ENG29 2121 &ndash; Common Emitter (Voltage Divider Bias)</p>
+        <p>ENG29 2121 &ndash; Common Emitter ({{ mode_label }})</p>
       </div>
     </div>
     <div class="course-badge">
@@ -26,10 +26,17 @@
   </header>
 
   <main class="layout">
+    <nav class="mode-tabs" aria-label="Bias mode">
+      {% for key, label in modes %}
+      <a class="mode-tab{% if key == mode %} active{% endif %}" href="{{ url_for('index', mode=key) }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+
     <div class="columns">
       <section class="card">
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6"/></svg>Input Parameters</h2>
         <form method="post" class="param-form" autocomplete="off">
+          <input type="hidden" name="mode" value="{{ mode }}">
           {% for f in fields %}
           <div class="prow">
             <label class="plabel" for="{{ f.name }}">
@@ -61,7 +68,7 @@
       </section>
 
       <section class="card">
-        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.5l2.5 8M16 7.5l-2.5 8"/></svg>Circuit: Common-Emitter Amplifier</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.5l2.5 8M16 7.5l-2.5 8"/></svg>Circuit: {{ mode_label }}</h2>
         <div class="diagram">{{ schematic }}</div>
       </section>
 
@@ -70,21 +77,20 @@
         {% if results %}
         <table class="result-table">
           <tbody>
-            <tr><td>V<sub>B</sub></td><td class="num">{{ results.vb }}</td><td class="unitc">V</td></tr>
-            <tr><td>V<sub>E</sub></td><td class="num">{{ results.ve }}</td><td class="unitc">V</td></tr>
-            <tr><td>V<sub>C</sub></td><td class="num">{{ results.vc }}</td><td class="unitc">V</td></tr>
-            <tr><td>V<sub>CE</sub></td><td class="num">{{ results.vce }}</td><td class="unitc">V</td></tr>
-            <tr><td>I<sub>B</sub></td><td class="num">{{ results.ib }}</td><td class="unitc">&micro;A</td></tr>
-            <tr><td>I<sub>C</sub></td><td class="num">{{ results.ic }}</td><td class="unitc">mA</td></tr>
-            <tr><td>I<sub>E</sub></td><td class="num">{{ results.ie }}</td><td class="unitc">mA</td></tr>
+            {% for key in ("VB", "VE", "VC", "VCE", "IB", "IC", "IE") %}
+            {% set item = results.payload[key] %}
+            <tr><td>{{ key[0] }}<sub>{{ key[1:] }}</sub></td><td class="num">{{ item.text }}</td><td class="unitc">{{ item.unit }}</td></tr>
+            {% endfor %}
           </tbody>
         </table>
         <div class="status status-{{ results.status.kind }}">
           <div class="status-title">{{ results.status.icon }} {{ results.status.title }}</div>
           <div class="status-detail">{{ results.status.detail }}</div>
+          {% if mode == "divider" %}
           <div class="status-compare">Thevenin &asymp; Nodal:
             <strong>{{ 'ตรงกัน' if results.all_match else 'ไม่ตรงกัน' }}</strong>
             (&Delta; สูงสุด {{ results.max_diff }})</div>
+          {% endif %}
         </div>
         {% else %}
         <p class="placeholder">กด “Calculate DC Bias” เพื่อแสดงผลจุดทำงาน DC</p>
@@ -99,6 +105,7 @@
     </section>
     {% endif %}
 
+    {% if mode == "divider" %}
     <section class="card compare">
       <h2>เปรียบเทียบกับการคำนวณอิสระ (Thevenin vs Nodal Analysis)</h2>
       {% if results %}
@@ -122,19 +129,30 @@
       <p class="note">เกณฑ์: ต่างสัมพัทธ์ &le; 1e-6 (หรือสัมบูรณ์ &le; 1e-12 เมื่อค่าใกล้ศูนย์)</p>
       {% endif %}
     </section>
+    {% endif %}
 
     <section class="card goal">
       <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>Week 2 Goal</h2>
       <p><strong>Rough target for this lab:</strong> Build a Flask web app that takes the circuit parameters,
         computes the BJT DC bias (V<sub>B</sub>, V<sub>E</sub>, V<sub>C</sub>, V<sub>CE</sub>,
-        I<sub>B</sub>, I<sub>C</sub>, I<sub>E</sub>) for a common-emitter amplifier with voltage-divider bias,
-        and displays the results.</p>
+        I<sub>B</sub>, I<sub>C</sub>, I<sub>E</sub>) for a common-emitter amplifier with
+        voltage-divider, fixed, or emitter bias, and displays the results.</p>
     </section>
 
     <footer class="card foot">
-      <h3>สูตรอ้างอิง (Thevenin)</h3>
-      <p><code>VBB = VCC&middot;R2/(R1+R2)</code>, <code>RB = R1||R2</code>, <code>IB = (VBB&minus;VBE)/(RB + (1+&beta;)RE)</code></p>
+      {% if mode == "fixed" %}
+      <h3>สูตรอ้างอิง (Fixed Bias)</h3>
+      <p><code>IB = (VCC &minus; VBE) / RB</code>, <code>IC = &beta;IB</code>, <code>IE = (1+&beta;)IB</code></p>
+      <p><code>VE = 0</code>, <code>VB = VBE</code>, <code>VC = VCC &minus; IC&middot;RC</code>, <code>VCE = VC</code></p>
+      {% elif mode == "emitter" %}
+      <h3>สูตรอ้างอิง (Emitter Bias)</h3>
+      <p><code>IB = (VCC &minus; VBE) / [RB + (1+&beta;)RE]</code>, <code>IC = &beta;IB</code>, <code>IE = (1+&beta;)IB</code></p>
+      <p><code>VE = IE&middot;RE</code>, <code>VB = VE + VBE</code>, <code>VC = VCC &minus; IC&middot;RC</code>, <code>VCE = VC &minus; VE</code></p>
+      {% else %}
+      <h3>สูตรอ้างอิง (Voltage Divider Bias)</h3>
+      <p><code>VTH = VCC&middot;R2/(R1+R2)</code>, <code>RTH = R1||R2</code>, <code>IB = (VTH&minus;VBE)/(RTH + (1+&beta;)RE)</code></p>
       <p><code>IC = &beta;IB</code>, <code>IE = (1+&beta;)IB</code>, <code>VC = VCC&minus;IC&middot;RC</code>, <code>VE = IE&middot;RE</code>, <code>VCE = VC&minus;VE</code></p>
+      {% endif %}
       <p class="note">สมมติ VBE คงที่ตามที่ป้อน และใช้แบบจำลองเชิงเส้น (หากอิ่มตัว/คัตออฟ ค่าที่แสดงเป็นผลจากแบบจำลองและมีคำเตือน)</p>
     </footer>
   </main>

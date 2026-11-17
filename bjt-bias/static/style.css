@@ -43,6 +43,16 @@ body {
 }
 .course-badge .code-icon { font-family: Consolas, monospace; font-size: 1.05rem; }
 
+/* ---------- mode tabs ---------- */
+.mode-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.mode-tab {
+  display: inline-block; padding: 9px 16px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--muted); text-decoration: none; font-weight: 600; font-size: .92rem;
+}
+.mode-tab:hover { border-color: var(--accent); color: var(--accent); }
+.mode-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 /* ---------- layout ---------- */
 .layout { max-width: 1180px; margin: 20px auto; padding: 0 20px; }
 .columns { display: grid; grid-template-columns: 1fr 1.25fr 0.9fr; gap: 16px; align-items: start; }

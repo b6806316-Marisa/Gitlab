@@ -1,12 +1,23 @@
 from flask import Flask, render_template, request
 from markupsafe import Markup
 
-from bjt import BiasError, compare, parse_input, solve_nodal, solve_thevenin
+from bjt import (
+    MODE_DIVIDER,
+    MODE_LABELS,
+    MODE_FIELDS,
+    MODES,
+    BiasError,
+    compare,
+    parse_input,
+    result_payload,
+    solve_for_mode,
+    solve_nodal,
+)
 from diagrams import load_line_svg, schematic_svg
 from units import RESISTANCE_UNITS, VOLTAGE_UNITS, UnitError, to_si
 
-FIELD_META = [
-    {
+FIELD_META = {
+    "vcc": {
         "name": "vcc",
         "sym": "V",
         "sub": "CC",
@@ -16,7 +27,7 @@ FIELD_META = [
         "default": "12.0",
         "default_unit": "v",
     },
-    {
+    "r1": {
         "name": "r1",
         "sym": "R",
         "sub": "1",
@@ -26,7 +37,7 @@ FIELD_META = [
         "default": "100",
         "default_unit": "kohm",
     },
-    {
+    "r2": {
         "name": "r2",
         "sym": "R",
         "sub": "2",
@@ -36,7 +47,17 @@ FIELD_META = [
         "default": "22",
         "default_unit": "kohm",
     },
-    {
+    "rb": {
+        "name": "rb",
+        "sym": "R",
+        "sub": "B",
+        "desc": "Base Resistor",
+        "kind": "resistance",
+        "units": RESISTANCE_UNITS,
+        "default": "470",
+        "default_unit": "kohm",
+    },
+    "rc": {
         "name": "rc",
         "sym": "R",
         "sub": "C",
@@ -46,7 +67,7 @@ FIELD_META = [
         "default": "2.2",
         "default_unit": "kohm",
     },
-    {
+    "re": {
         "name": "re",
         "sym": "R",
         "sub": "E",
@@ -56,7 +77,7 @@ FIELD_META = [
         "default": "1.0",
         "default_unit": "kohm",
     },
-    {
+    "beta": {
         "name": "beta",
         "sym": "β",
         "sub": "",
@@ -66,7 +87,7 @@ FIELD_META = [
         "default": "100",
         "default_unit": "",
     },
-    {
+    "vbe": {
         "name": "vbe",
         "sym": "V",
         "sub": "BE",
@@ -76,28 +97,33 @@ FIELD_META = [
         "default": "0.70",
         "default_unit": "v",
     },
-]
+}
 
-FIELD_NAMES = tuple(f["name"] for f in FIELD_META)
-
-
-def default_form():
-    return {f["name"]: f["default"] for f in FIELD_META}
+FIELD_NAMES = tuple(FIELD_META)
 
 
-def default_units():
-    return {f["name"]: f["default_unit"] for f in FIELD_META}
+def fields_for(mode):
+    return [FIELD_META[name] for name in MODE_FIELDS[mode]]
 
 
-def parse_form(form):
+def default_form(mode=MODE_DIVIDER):
+    return {name: FIELD_META[name]["default"] for name in MODE_FIELDS[mode]}
+
+
+def default_units(mode=MODE_DIVIDER):
+    return {name: FIELD_META[name]["default_unit"] for name in MODE_FIELDS[mode]}
+
+
+def parse_form(form, mode=MODE_DIVIDER):
     """แปลงค่าตามหน่วยที่เลือกในฟอร์ม ให้เป็นหน่วยฐาน (V, Ω) เป็นข้อความ
 
+    อ่านเฉพาะช่องที่โหมดนั้นใช้ — ช่องของโหมดอื่นที่ค้างมาไม่ถูกตรวจ
     คืน (ค่าในหน่วยฐาน, รายการข้อความผิดพลาดของหน่วย)
     """
     si = {}
     errors = []
-    for field in FIELD_META:
-        name = field["name"]
+    for name in MODE_FIELDS[mode]:
+        field = FIELD_META[name]
         raw = form.get(name, "")
         if field["kind"] == "none":
             si[name] = str(raw).strip()
@@ -111,16 +137,20 @@ def parse_form(form):
     return si, errors
 
 
-def build_status(primary, bias, rows):
+def build_status(primary, bias, rows=None, mode=MODE_DIVIDER):
     """สถานะการทำงานของทรานซิสเตอร์สำหรับการ์ดสีเขียว/เหลือง/แดง"""
     vce = primary.vce_v
-    vbb = bias.vcc_v * bias.r2_ohm / (bias.r1_ohm + bias.r2_ohm)
     if primary.region == "cutoff":
+        if mode == MODE_DIVIDER:
+            vbb = bias.vcc_v * bias.r2_ohm / (bias.r1_ohm + bias.r2_ohm)
+            detail = f"VBB = {vbb:.2f} V ≤ VBE = {bias.vbe_v:.2f} V (no base bias)"
+        else:
+            detail = f"VCC = {bias.vcc_v:.2f} V ≤ VBE = {bias.vbe_v:.2f} V (no base bias)"
         return {
             "kind": "warn",
             "icon": "⚠",
             "title": "Cutoff — transistor is off",
-            "detail": f"VBB = {vbb:.2f} V ≤ VBE = {bias.vbe_v:.2f} V (no base bias)",
+            "detail": detail,
         }
     if primary.region == "saturation":
         return {
@@ -147,88 +177,107 @@ def build_status(primary, bias, rows):
 def create_app():
     app = Flask(__name__)
 
-    def schematic_for(values, nodes=None):
+    def schematic_for(mode, values, nodes=None):
         safe = {}
         for name in FIELD_NAMES:
             try:
                 safe[name] = float(str(values.get(name, "")).strip() or 0.0)
             except (TypeError, ValueError):
                 safe[name] = 0.0
-        return Markup(schematic_svg(nodes=nodes, **safe))
+        return Markup(schematic_svg(mode=mode, nodes=nodes, **safe))
+
+    def render_page(mode, form, units, results=None, errors=None, schematic=None, loadline=None):
+        return render_template(
+            "index.html",
+            mode=mode,
+            mode_label=MODE_LABELS[mode],
+            modes=[(key, MODE_LABELS[key]) for key in MODES],
+            fields=fields_for(mode),
+            form=form,
+            units=units,
+            results=results,
+            errors=errors,
+            schematic=schematic,
+            loadline=loadline,
+        )
 
     @app.route("/", methods=["GET", "POST"])
     def index():
         if request.method == "POST":
-            form = {name: request.form.get(name, "") for name in FIELD_NAMES}
-            units = {name: request.form.get(f"{name}_unit", "") for name in FIELD_NAMES}
-            si, unit_errors = parse_form(request.form)
+            mode = request.form.get("mode", MODE_DIVIDER)
+        else:
+            mode = request.args.get("mode", MODE_DIVIDER)
+        if mode not in MODES:
+            mode = MODE_DIVIDER
+
+        if request.method == "POST":
+            form = {name: request.form.get(name, "") for name in MODE_FIELDS[mode]}
+            units = {name: request.form.get(f"{name}_unit", "") for name in MODE_FIELDS[mode]}
+            si, unit_errors = parse_form(request.form, mode)
             if unit_errors:
-                return render_template(
-                    "index.html",
-                    form=form,
-                    units=units,
-                    fields=FIELD_META,
+                return render_page(
+                    mode,
+                    form,
+                    units,
                     results=None,
                     errors=unit_errors,
-                    schematic=schematic_for(si),
-                    loadline=None,
+                    schematic=schematic_for(mode, si),
                 )
             try:
-                bias = parse_input(si)
-                primary = solve_thevenin(bias)
-                nodal = solve_nodal(bias)
-                rows = compare(primary, nodal)
+                bias = parse_input(si, mode)
+                primary = solve_for_mode(mode, bias)
+                if mode == MODE_DIVIDER:
+                    nodal = solve_nodal(bias)
+                    rows = compare(primary, nodal)
+                    all_match = all(r.matches for r in rows)
+                    max_diff = f"{max(r.difference for r in rows):.2e}"
+                else:
+                    rows = []
+                    all_match = None
+                    max_diff = None
                 results = {
-                    "vb": f"{primary.vb_v:.2f}",
-                    "ve": f"{primary.ve_v:.2f}",
-                    "vc": f"{primary.vc_v:.2f}",
-                    "vce": f"{primary.vce_v:.2f}",
-                    "ib": f"{primary.ib_a * 1e6:.3g}",
-                    "ic": f"{primary.ic_a * 1e3:.3g}",
-                    "ie": f"{primary.ie_a * 1e3:.3g}",
+                    "payload": result_payload(primary),
                     "rows": rows,
-                    "all_match": all(r.matches for r in rows),
-                    "max_diff": f"{max(r.difference for r in rows):.2e}",
-                    "status": build_status(primary, bias, rows),
+                    "all_match": all_match,
+                    "max_diff": max_diff,
+                    "status": build_status(primary, bias, rows, mode),
+                    "region": primary.region,
                 }
                 nodes = {
                     "vb_v": primary.vb_v,
                     "ve_v": primary.ve_v,
                     "vc_v": primary.vc_v,
                 }
-                return render_template(
-                    "index.html",
-                    form=form,
-                    units=units,
-                    fields=FIELD_META,
+                re_ohm = getattr(bias, "re_ohm", 0.0) or 0.0
+                return render_page(
+                    mode,
+                    form,
+                    units,
                     results=results,
                     errors=None,
-                    schematic=schematic_for(si, nodes),
+                    schematic=schematic_for(mode, si, nodes),
                     loadline=Markup(
-                        load_line_svg(bias.vcc_v, bias.rc_ohm, bias.re_ohm, primary.ic_a, primary.vce_v)
+                        load_line_svg(bias.vcc_v, bias.rc_ohm, re_ohm, primary.ic_a, primary.vce_v)
                     ),
                 )
             except BiasError as exc:
-                return render_template(
-                    "index.html",
-                    form=form,
-                    units=units,
-                    fields=FIELD_META,
+                return render_page(
+                    mode,
+                    form,
+                    units,
                     results=None,
                     errors=exc.errors,
-                    schematic=schematic_for(si),
-                    loadline=None,
+                    schematic=schematic_for(mode, si),
                 )
 
-        return render_template(
-            "index.html",
-            form=default_form(),
-            units=default_units(),
-            fields=FIELD_META,
+        form = default_form(mode)
+        return render_page(
+            mode,
+            form,
+            default_units(mode),
             results=None,
             errors=None,
-            schematic=schematic_for(default_form()),
-            loadline=None,
+            schematic=schematic_for(mode, form),
         )
 
     return app
