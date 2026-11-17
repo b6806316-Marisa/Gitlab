@@ -7,10 +7,29 @@ FIELD_LABELS = {
     "vcc": "VCC",
     "r1": "R1",
     "r2": "R2",
+    "rb": "RB",
     "rc": "RC",
     "re": "RE",
     "beta": "beta",
     "vbe": "VBE",
+}
+
+MODE_DIVIDER = "divider"
+MODE_FIXED = "fixed"
+MODE_EMITTER = "emitter"
+MODES = (MODE_DIVIDER, MODE_FIXED, MODE_EMITTER)
+
+MODE_LABELS = {
+    MODE_DIVIDER: "Voltage Divider Bias",
+    MODE_FIXED: "Fixed Bias",
+    MODE_EMITTER: "Emitter Bias",
+}
+
+# ช่องอินพุตที่แต่ละโหมดใช้จริง (ช่องอื่นไม่ถูกอ่าน/ไม่ถูกตรวจ)
+MODE_FIELDS = {
+    MODE_DIVIDER: ("vcc", "r1", "r2", "rc", "re", "beta", "vbe"),
+    MODE_FIXED: ("vcc", "rb", "rc", "beta", "vbe"),
+    MODE_EMITTER: ("vcc", "rb", "rc", "re", "beta", "vbe"),
 }
 
 VCE_SAT_V = 0.2
@@ -37,6 +56,25 @@ class BiasInput:
 
 
 @dataclass(frozen=True)
+class FixedBiasInput:
+    vcc_v: float
+    rb_ohm: float
+    rc_ohm: float
+    beta: float
+    vbe_v: float
+
+
+@dataclass(frozen=True)
+class EmitterBiasInput:
+    vcc_v: float
+    rb_ohm: float
+    rc_ohm: float
+    re_ohm: float
+    beta: float
+    vbe_v: float
+
+
+@dataclass(frozen=True)
 class BiasResult:
     ib_a: float
     ic_a: float
@@ -49,11 +87,8 @@ class BiasResult:
     warnings: tuple[str, ...] = ()
 
 
-def parse_input(raw):
-    """อ่านค่า 7 ช่องจากฟอร์ม (dict ของข้อความ) แล้วคืน BiasInput
-
-    รวบรวมข้อความผิดพลาดของทุกช่องไว้ใน BiasError.errors ก่อนยกเสมอ
-    """
+def _parse_divider(raw):
+    """อ่านค่า 7 ช่องของโหมด voltage divider (พฤติกรรมเดิมทั้งหมด)"""
     errors = []
     values = {}
 
@@ -105,6 +140,100 @@ def parse_input(raw):
         beta=beta,
         vbe_v=vbe,
     )
+
+
+def _read_field(raw, field, errors):
+    label = FIELD_LABELS[field]
+    text = str(raw.get(field, "")).strip()
+    if not text:
+        errors.append(f"กรุณาระบุค่า {label}")
+        return None
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        errors.append(f"{label} ต้องเป็นตัวเลขที่ถูกต้อง")
+        return None
+    if not math.isfinite(value):
+        errors.append(f"{label} ต้องเป็นตัวเลขที่ถูกต้อง")
+        return None
+    return value
+
+
+def _check_vcc(values, errors):
+    vcc = values.get("vcc")
+    if vcc is not None and vcc <= 0:
+        errors.append("VCC ต้องมีค่ามากกว่าศูนย์")
+
+
+def _check_positive(values, fields, errors):
+    for field in fields:
+        value = values.get(field)
+        if value is not None and value <= 0:
+            errors.append(f"{FIELD_LABELS[field]} ต้องมีค่ามากกว่าศูนย์")
+
+
+def _check_beta(values, errors):
+    beta = values.get("beta")
+    if beta is not None and beta <= 0:
+        errors.append("beta ต้องมีค่ามากกว่าศูนย์")
+
+
+def _check_vbe(values, errors):
+    vcc = values.get("vcc")
+    vbe = values.get("vbe")
+    if vcc is not None and vbe is not None and not (0 <= vbe < vcc):
+        errors.append("VBE ต้องอยู่ระหว่าง 0 ถึง VCC (น้อยกว่า VCC)")
+
+
+def _parse_fixed(raw):
+    errors = []
+    values = {field: _read_field(raw, field, errors) for field in MODE_FIELDS[MODE_FIXED]}
+    _check_vcc(values, errors)
+    _check_positive(values, ("rb", "rc"), errors)
+    _check_beta(values, errors)
+    _check_vbe(values, errors)
+    if errors:
+        raise BiasError(errors)
+    return FixedBiasInput(
+        vcc_v=values["vcc"],
+        rb_ohm=values["rb"],
+        rc_ohm=values["rc"],
+        beta=values["beta"],
+        vbe_v=values["vbe"],
+    )
+
+
+def _parse_emitter(raw):
+    errors = []
+    values = {field: _read_field(raw, field, errors) for field in MODE_FIELDS[MODE_EMITTER]}
+    _check_vcc(values, errors)
+    _check_positive(values, ("rb", "rc", "re"), errors)
+    _check_beta(values, errors)
+    _check_vbe(values, errors)
+    if errors:
+        raise BiasError(errors)
+    return EmitterBiasInput(
+        vcc_v=values["vcc"],
+        rb_ohm=values["rb"],
+        rc_ohm=values["rc"],
+        re_ohm=values["re"],
+        beta=values["beta"],
+        vbe_v=values["vbe"],
+    )
+
+
+def parse_input(raw, mode=MODE_DIVIDER):
+    """อ่านค่าตามโหมด แล้วคืน input dataclass ของโหมดนั้น
+
+    โหมด divider คงพฤติกรรมเดิมทุกอย่าง; fixed/emitter ตรวจเฉพาะช่องที่ใช้
+    และรวบรวมข้อความผิดพลาดทั้งหมดไว้ใน BiasError.errors ก่อนยกเสมอ
+    """
+    if mode == MODE_FIXED:
+        return _parse_fixed(raw)
+    if mode == MODE_EMITTER:
+        return _parse_emitter(raw)
+    return _parse_divider(raw)
+
 
 def classify(vce_v):
     if vce_v <= VCE_SAT_V:
@@ -245,6 +374,83 @@ def solve_nodal(b):
         region=region,
         warnings=tuple(warnings),
     )
+
+
+def _region_warnings(region, vce):
+    warnings = []
+    if region == "saturation":
+        warnings.append("ทรานซิสเตอร์อิ่มตัว (saturation): ค่า VCE ต่ำกว่า 0.2 V แบบจำลองเชิงเส้นอาจไม่ถูกต้อง แต่แสดงค่าที่คำนวณได้ตามจริง")
+    elif VCE_SAT_V <= vce < VCE_NEAR_V:
+        warnings.append("VCE ใกล้ภาวะอิ่มตัว (near saturation) ควรระวัง headroom")
+    return tuple(warnings)
+
+
+def solve_fixed_bias(b):
+    """Fixed bias: RB จาก VCC ไปฐาน, อิมิตเตอร์ต่อกราวด์ตรง (VE = 0)"""
+    ib = (b.vcc_v - b.vbe_v) / b.rb_ohm
+    ic = b.beta * ib
+    ie = (1.0 + b.beta) * ib
+    ve = 0.0
+    vb = ve + b.vbe_v
+    vc = b.vcc_v - ic * b.rc_ohm
+    vce = vc - ve
+    region = classify(vce)
+    return BiasResult(
+        ib_a=ib,
+        ic_a=ic,
+        ie_a=ie,
+        vce_v=vce,
+        vb_v=vb,
+        ve_v=ve,
+        vc_v=vc,
+        region=region,
+        warnings=_region_warnings(region, vce),
+    )
+
+
+def solve_emitter_bias(b):
+    """Emitter bias แหล่งจ่ายเดียว: RB จาก VCC ไปฐาน + RE จากอิมิตเตอร์ลงกราวด์"""
+    ib = (b.vcc_v - b.vbe_v) / (b.rb_ohm + (1.0 + b.beta) * b.re_ohm)
+    ic = b.beta * ib
+    ie = (1.0 + b.beta) * ib
+    ve = ie * b.re_ohm
+    vb = ve + b.vbe_v
+    vc = b.vcc_v - ic * b.rc_ohm
+    vce = vc - ve
+    region = classify(vce)
+    return BiasResult(
+        ib_a=ib,
+        ic_a=ic,
+        ie_a=ie,
+        vce_v=vce,
+        vb_v=vb,
+        ve_v=ve,
+        vc_v=vc,
+        region=region,
+        warnings=_region_warnings(region, vce),
+    )
+
+
+def solve_for_mode(mode, b):
+    """เลือกสมการตามโหมด — divider ใช้เส้นทางเดิมทั้งหมด"""
+    if mode == MODE_FIXED:
+        return solve_fixed_bias(b)
+    if mode == MODE_EMITTER:
+        return solve_emitter_bias(b)
+    return solve_thevenin(b)
+
+
+def result_payload(r):
+    """ผลลัพธ์กลาง: คีย์และหน่วยเหมือนกันทุกโหมด (V, µA, mA)"""
+    return {
+        "VB": {"value": r.vb_v, "unit": "V", "text": f"{r.vb_v:.2f}"},
+        "VE": {"value": r.ve_v, "unit": "V", "text": f"{r.ve_v:.2f}"},
+        "VC": {"value": r.vc_v, "unit": "V", "text": f"{r.vc_v:.2f}"},
+        "VCE": {"value": r.vce_v, "unit": "V", "text": f"{r.vce_v:.2f}"},
+        "IB": {"value": r.ib_a * 1e6, "unit": "µA", "text": f"{r.ib_a * 1e6:.3g}"},
+        "IC": {"value": r.ic_a * 1e3, "unit": "mA", "text": f"{r.ic_a * 1e3:.3g}"},
+        "IE": {"value": r.ie_a * 1e3, "unit": "mA", "text": f"{r.ie_a * 1e3:.3g}"},
+    }
 
 
 def compare(primary, independent, rel_tol=1e-6, abs_tol=1e-12):
