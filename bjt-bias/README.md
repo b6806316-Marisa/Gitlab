@@ -79,3 +79,20 @@ cd bjt-bias
 - `VE = IE·RE`, `VB = VBE+VE`, `VC = VCC−IC·RC`, `VCE = VC−VE`
 
 > หมายเหตุ: แอปใช้แบบจำลองเชิงเส้นและ VBE คงที่ตามที่ป้อน หากเข้าสู่ภาวะ cutoff/saturation จะมีคำเตือนและแสดงค่าตามแบบจำลอง (ไม่ปรับ clamp ค่า VCE)
+
+## ส่วนที่ AI ช่วย / วิธีตรวจ
+
+- **AI (OpenCode) ช่วยเขียน:** ฟังก์ชัน solver ใหม่ (`solve_fixed_bias`, `solve_emitter_bias`, `solve_for_mode`), `parse_input(raw, mode)`, `result_payload`, `parse_form`, route/tab ตามโหมด, ผัง SVG ตามโหมด, README และเอกสารตรวจรับ
+- **ตรวจสมการเทียบโค้ด:** สคริปต์อิสระแทนค่าลงสูตรสไลด์โดยตรง (ไม่ import `bjt.py`/`app.py`) แล้วเทียบกับ Flask test client, Browser จริง และการคำนวณด้วยมือ — ทุกวิธีให้ผลตรงกันและ **มีน้ำหนักเท่ากัน**
+- **Divider ไม่เสีย:** เปรียบเทียบ HTML ก่อน/หลังแก้ 6 สถานการณ์ ตัวเลข หน่วย ข้อความ status และค่า Δ เหมือนเดิมทุกตัว
+- **บทบาท MCP:** MCP คือสะพานให้โมเดลเรียกเครื่องมือ browser (เช่น Playwright `browser_navigate`/`browser_snapshot`) — เซสชันนี้ไม่มี Playwright MCP จึงใช้ browser ในตัว OpenCode แทน ทำหน้าที่เดียวกัน
+- รายละเอียดและตาราง A1–A5: `../docs/superpowers/specs/2026-11-17-bjt-bias-modes-expected-values.md`
+
+## ที่อยู่ผลงานและ Commit SHA
+
+- GitHub: https://github.com/b6806316-Marisa/Gitlab/tree/main/bjt-bias
+- `2532b4c` — feat: add fixed and emitter bias solvers
+- `5bfc51b` — feat: draw fixed and emitter bias schematics
+- `305bb14` — feat: route bias modes through the app
+- `6d2e768` — docs: document bias modes, design, and acceptance values
+- `8580d61` — fix: show SI-scaled resistor labels on initial GET page
