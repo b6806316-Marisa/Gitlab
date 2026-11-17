@@ -241,7 +241,6 @@ def create_app():
                     "all_match": all_match,
                     "max_diff": max_diff,
                     "status": build_status(primary, bias, rows, mode),
-                    "region": primary.region,
                 }
                 nodes = {
                     "vb_v": primary.vb_v,
@@ -271,13 +270,15 @@ def create_app():
                 )
 
         form = default_form(mode)
+        # แปลงค่า default เป็นหน่วยฐานก่อนวาดผัง เพื่อให้ป้ายในผังตรงกับหน่วยในฟอร์ม
+        si_defaults, _ = parse_form(form, mode)
         return render_page(
             mode,
             form,
             default_units(mode),
             results=None,
             errors=None,
-            schematic=schematic_for(mode, form),
+            schematic=schematic_for(mode, si_defaults),
         )
 
     return app
