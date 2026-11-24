@@ -136,12 +136,13 @@ class TestRoutes(unittest.TestCase):
         self.assertIn("VCC = 12 V", body)
         self.assertIn("R1", body)
 
-    def test_post_valid_shows_schematic_and_load_line(self):
+    def test_post_valid_shows_schematic_without_q_point_graph(self):
         body = self.client.post("/", data=DEFAULT_POST).get_data(as_text=True)
-        self.assertGreaterEqual(body.count("<svg"), 2)
-        self.assertIn("Q (1.23 mA, 8.05 V)", body)
-        self.assertIn("VCE (V)", body)
+        self.assertIn("<svg", body)
         self.assertIn("VB = 1.94 V", body)
+        self.assertNotIn("กราฟ load line และจุดทำงาน Q", body)
+        self.assertNotIn("Q (1.23 mA, 8.05 V)", body)
+        self.assertNotIn("VCE (V)", body)
 
 
 if __name__ == "__main__":
