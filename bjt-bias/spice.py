@@ -32,8 +32,8 @@ SPICE_DEFAULTS = {
     "ac_fstart": "10",
     "ac_fstop": "1e6",
     "ac_ppd": "50",
-    "tran_tstep": "20",
-    "tran_tstop": "200",
+    "tran_tstep": "5",
+    "tran_tstop": "3",
 }
 
 

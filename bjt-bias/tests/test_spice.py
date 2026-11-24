@@ -21,7 +21,7 @@ DEFAULT_FORM = {
     "c1": "10", "ce": "0", "c2": "10", "bf": "200",
     "sin_amp": "10", "sin_freq": "1000",
     "ac_fstart": "10", "ac_fstop": "1e6", "ac_ppd": "50",
-    "tran_tstep": "20", "tran_tstop": "200",
+    "tran_tstep": "5", "tran_tstop": "3",
 }
 
 
@@ -33,7 +33,8 @@ class TestParseSpiceForm(unittest.TestCase):
         self.assertAlmostEqual(inp.c1_f, 10e-6)
         self.assertEqual(inp.ce_f, 0.0)
         self.assertAlmostEqual(inp.sin_amp_v, 10e-3)
-        self.assertAlmostEqual(inp.tran_tstop_s, 200e-3)
+        self.assertAlmostEqual(inp.tran_tstep_s, 5e-6)
+        self.assertAlmostEqual(inp.tran_tstop_s, 3e-3)
 
     def test_default_form_is_valid(self):
         inp, errors = parse_spice_form(default_spice_form())
@@ -72,7 +73,7 @@ class TestNetlists(unittest.TestCase):
         self.assertIn("BF=200", nets["op"])
         self.assertIn("ac dec 50 10 1000000", nets["ac"])
         self.assertIn("wrdata ac.csv vdb(6) vp(6) vdb(5) vp(5)", nets["ac"])
-        self.assertIn("tran 2e-05 0.2", nets["tran"])
+        self.assertIn("tran 5e-06 0.003", nets["tran"])
         self.assertIn(".op", nets["op"])
         self.assertNotIn(".control", nets["op"])
 
