@@ -1,6 +1,15 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from spice import build_netlists, default_spice_form, parse_spice_form
+from spice import (
+    build_netlists,
+    default_spice_form,
+    find_ngspice,
+    parse_op_log,
+    parse_spice_form,
+    run_simulations,
+)
 
 DEFAULT_FORM = {
     "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2", "re": "1", "rl": "10",
@@ -69,6 +78,42 @@ class TestNetlists(unittest.TestCase):
         ))
         bypassed, _ = parse_spice_form(dict(DEFAULT_FORM, ce="100"))
         self.assertIn("CE 4 0 1e-04", build_netlists(bypassed)["op"])
+
+
+OP_LOG = """	V(6)                             0.000000e+00
+	V(4)                             1.342947e+00
+	V(3)                             9.066245e+00
+	V(2)                             1.994035e+00
+     device                    q1
+      model               q2n2222
+         ic            0.00133373
+         ib           9.42296e-06
+         ie           -0.00134315
+        vbe              0.650994
+"""
+
+
+class TestOpParseAndRun(unittest.TestCase):
+    def test_parse_op_log(self):
+        op = parse_op_log(OP_LOG)
+        self.assertAlmostEqual(op["vb"], 1.994035)
+        self.assertAlmostEqual(op["ic"], 1.33373e-3)
+        self.assertAlmostEqual(op["vbe"], 0.650994)
+        self.assertAlmostEqual(op["vce"], 9.066245 - 1.342947)
+        self.assertAlmostEqual(op["vout"], 0.0)
+
+    @unittest.skipUnless(find_ngspice(), "ngspice not installed")
+    def test_real_op_is_in_active_region(self):
+        inp, _ = parse_spice_form(DEFAULT_FORM)
+        run = run_simulations(inp, Path(tempfile.mkdtemp()))
+        self.assertGreater(run.op["vce"], 0.2)
+        self.assertGreater(run.op["ic"], 0.2e-3)
+        self.assertLess(run.op["ic"], 5e-3)
+        self.assertTrue(run.version)
+        self.assertEqual(run.ac.exit_code, 0)
+        self.assertEqual(run.tran.exit_code, 0)
+        self.assertTrue(run.ac.netlist_sha)
+        self.assertTrue(run.tran.result_sha)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,16 @@ reaches a netlist or a subprocess command line.
 """
 
 from dataclasses import dataclass
+import datetime
+import hashlib
 import math
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import uuid
 
 SPICE_DEFAULTS = {
     "vcc": "12",
@@ -204,3 +213,178 @@ def build_netlists(inp):
         "",
     ])
     return nets
+
+
+class SpiceError(Exception):
+    """Raised when ngspice is missing, fails, times out or writes no result."""
+
+
+@dataclass(frozen=True)
+class AnalysisRun:
+    analysis: str
+    netlist: str
+    log: str
+    rows: list
+    exit_code: int
+    command: str
+    netlist_sha: str
+    result_sha: str
+    result_name: str
+
+
+@dataclass(frozen=True)
+class SpiceRun:
+    op: dict
+    ac: AnalysisRun
+    tran: AnalysisRun
+    version: str
+    timestamp_utc: str
+    workdir: str
+
+
+def find_ngspice():
+    """Resolve the ngspice executable: override, bundled binary, then PATH."""
+    override = os.environ.get("NGSPICE_BIN", "").strip()
+    if override:
+        candidate = Path(override)
+        if candidate.is_file():
+            return candidate
+        found = shutil.which(override)
+        if found:
+            return Path(found)
+        return None
+
+    bundled = Path(__file__).resolve().parent / "tools" / "ngspice"
+    if bundled.is_dir():
+        for name in ("ngspice_con.exe", "ngspice.exe", "ngspice"):
+            hits = sorted(bundled.rglob(name))
+            if hits:
+                return hits[0]
+
+    for name in ("ngspice_con", "ngspice"):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    return None
+
+
+def _sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _run_process(executable, args, cwd, timeout=15):
+    command = [str(executable), *args]
+    options = {
+        "cwd": str(cwd),
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "text": True,
+        "errors": "replace",
+        "timeout": timeout,
+    }
+    if sys.platform == "win32":
+        options["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    completed = subprocess.run(command, **options)
+    return completed.stdout or "", completed.returncode, command
+
+
+def _simple_rows(text):
+    rows = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            rows.append(tuple(float(part) for part in line.split()))
+        except ValueError:
+            continue
+    return rows
+
+
+def parse_op_log(text):
+    """Read the node table and the Q1 device section from an ngspice .op log."""
+    nodes = {}
+    for match in re.finditer(r"^\s*V\((\d+)\)\s+([-+0-9.eE]+)", text, re.MULTILINE):
+        nodes[int(match.group(1))] = float(match.group(2))
+
+    devices = {}
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if re.match(r"^\s*device\s+q1\s*$", line):
+            for detail in lines[index + 1:]:
+                if not detail.strip():
+                    break
+                parameter = re.match(r"^\s*(\w+)\s+([-+0-9.eE]+)\s*$", detail)
+                if parameter:
+                    devices[parameter.group(1)] = float(parameter.group(2))
+            break
+
+    op = {
+        "vb": nodes.get(2, 0.0),
+        "vc": nodes.get(3, 0.0),
+        "ve": nodes.get(4, 0.0),
+        "vout": nodes.get(6, 0.0),
+        "ic": devices.get("ic", 0.0),
+        "ib": devices.get("ib", 0.0),
+        "ie": abs(devices.get("ie", 0.0)),
+        "vbe": devices.get("vbe", nodes.get(2, 0.0) - nodes.get(4, 0.0)),
+    }
+    op["vce"] = op["vc"] - op["ve"]
+    return op
+
+
+def run_simulations(inp, base_dir):
+    """Run .op, .ac and .tran in separate directories; keep all raw evidence."""
+    executable = find_ngspice()
+    if executable is None:
+        raise SpiceError("ไม่พบ ngspice — กรุณารัน setup_spice.ps1 หรือตั้งค่า NGSPICE_BIN")
+
+    stamp = datetime.datetime.now(datetime.timezone.utc)
+    workdir = Path(base_dir) / f"{stamp.strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
+    workdir.mkdir(parents=True, exist_ok=False)
+    netlists = build_netlists(inp)
+
+    runs = {}
+    for analysis in ("op", "ac", "tran"):
+        netlist = netlists[analysis]
+        netlist_path = workdir / f"{analysis}.cir"
+        netlist_path.write_text(netlist, encoding="utf-8")
+        log_name = f"{analysis}.log"
+        output, code, command = _run_process(
+            executable, ["-b", "-o", log_name, netlist_path.name], workdir
+        )
+        log_path = workdir / log_name
+        log_text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        log = (log_text + "\n" + output).strip()
+        result_name = f"{analysis}.csv" if analysis != "op" else log_name
+        result_path = workdir / result_name
+        result_bytes = result_path.read_bytes() if result_path.exists() else b""
+        rows = _simple_rows(result_bytes.decode("utf-8", errors="replace"))
+        runs[analysis] = AnalysisRun(
+            analysis=analysis,
+            netlist=netlist,
+            log=log,
+            rows=rows,
+            exit_code=code,
+            command=" ".join(command),
+            netlist_sha=_sha256(netlist.encode("utf-8")),
+            result_sha=_sha256(result_bytes) if result_bytes else "",
+            result_name=result_name,
+        )
+        if code != 0 or (analysis != "op" and not result_bytes):
+            raise SpiceError(
+                f"ngspice {analysis} ไม่สำเร็จ (exit code {code}) — ดู log ใน {workdir / log_name}"
+            )
+
+    version_output, _, _ = _run_process(executable, ["-v"], workdir, timeout=10)
+    version_match = re.search(r"ngspice-[\w.]+", version_output)
+    version = version_match.group(0) if version_match else version_output.splitlines()[0] if version_output else "unknown"
+
+    return SpiceRun(
+        op=parse_op_log(runs["op"].log),
+        ac=runs["ac"],
+        tran=runs["tran"],
+        version=version,
+        timestamp_utc=stamp.isoformat(timespec="seconds"),
+        workdir=str(workdir),
+    )
