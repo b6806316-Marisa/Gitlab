@@ -1,6 +1,6 @@
 import unittest
 
-from spice import default_spice_form, parse_spice_form
+from spice import build_netlists, default_spice_form, parse_spice_form
 
 DEFAULT_FORM = {
     "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2", "re": "1", "rl": "10",
@@ -47,6 +47,28 @@ class TestParseSpiceForm(unittest.TestCase):
     def test_rejects_netlist_injection_text(self):
         _, errors = parse_spice_form(dict(DEFAULT_FORM, r1="1; shell"))
         self.assertTrue(errors)
+
+
+class TestNetlists(unittest.TestCase):
+    def test_netlists_use_inputs_and_three_analyses(self):
+        inp, _ = parse_spice_form(DEFAULT_FORM)
+        nets = build_netlists(inp)
+        self.assertEqual(set(nets), {"op", "ac", "tran"})
+        self.assertIn("R1 1 2 100000", nets["op"])
+        self.assertIn("BF=200", nets["op"])
+        self.assertIn("ac dec 50 10 1000000", nets["ac"])
+        self.assertIn("tran 2e-05 0.2", nets["tran"])
+        self.assertIn(".op", nets["op"])
+        self.assertNotIn(".control", nets["op"])
+
+    def test_zero_ce_omits_bypass_capacitor(self):
+        inp, _ = parse_spice_form(DEFAULT_FORM)
+        self.assertNotIn("C", "\n".join(
+            line for line in build_netlists(inp)["op"].splitlines()
+            if line.startswith("CE ")
+        ))
+        bypassed, _ = parse_spice_form(dict(DEFAULT_FORM, ce="100"))
+        self.assertIn("CE 4 0 1e-04", build_netlists(bypassed)["op"])
 
 
 if __name__ == "__main__":
