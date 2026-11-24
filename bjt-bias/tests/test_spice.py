@@ -8,7 +8,9 @@ from spice import (
     find_ngspice,
     parse_op_log,
     parse_spice_form,
+    parse_wrdata,
     run_simulations,
+    SpiceError,
 )
 
 DEFAULT_FORM = {
@@ -114,6 +116,20 @@ class TestOpParseAndRun(unittest.TestCase):
         self.assertEqual(run.tran.exit_code, 0)
         self.assertTrue(run.ac.netlist_sha)
         self.assertTrue(run.tran.result_sha)
+
+
+class TestWrdata(unittest.TestCase):
+    def test_parse_wrdata_columns(self):
+        rows = parse_wrdata("10 1.5 -30\n100 2.5 -45\n")
+        self.assertEqual(rows, [(10.0, 1.5, -30.0), (100.0, 2.5, -45.0)])
+
+    def test_parse_wrdata_skips_comments_and_blank_lines(self):
+        rows = parse_wrdata("# header\n\n1 2 3 4\n  5 6 7 8  \n")
+        self.assertEqual(rows, [(1.0, 2.0, 3.0, 4.0), (5.0, 6.0, 7.0, 8.0)])
+
+    def test_empty_output_raises_spice_error(self):
+        with self.assertRaises(SpiceError):
+            parse_wrdata("\n# comment only\n")
 
 
 if __name__ == "__main__":

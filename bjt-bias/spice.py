@@ -218,6 +218,10 @@ def build_netlists(inp):
 class SpiceError(Exception):
     """Raised when ngspice is missing, fails, times out or writes no result."""
 
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
 
 @dataclass(frozen=True)
 class AnalysisRun:
@@ -288,7 +292,8 @@ def _run_process(executable, args, cwd, timeout=15):
     return completed.stdout or "", completed.returncode, command
 
 
-def _simple_rows(text):
+def parse_wrdata(text):
+    """Parse ngspice wrdata output into numeric tuples; reject empty output."""
     rows = []
     for line in text.splitlines():
         line = line.strip()
@@ -298,6 +303,8 @@ def _simple_rows(text):
             rows.append(tuple(float(part) for part in line.split()))
         except ValueError:
             continue
+    if not rows:
+        raise SpiceError("ไฟล์ผลจาก ngspice ว่างหรือไม่ถูกต้อง")
     return rows
 
 
@@ -359,7 +366,7 @@ def run_simulations(inp, base_dir):
         result_name = f"{analysis}.csv" if analysis != "op" else log_name
         result_path = workdir / result_name
         result_bytes = result_path.read_bytes() if result_path.exists() else b""
-        rows = _simple_rows(result_bytes.decode("utf-8", errors="replace"))
+        rows = parse_wrdata(result_bytes.decode("utf-8", errors="replace")) if result_bytes else []
         runs[analysis] = AnalysisRun(
             analysis=analysis,
             netlist=netlist,
