@@ -30,6 +30,7 @@
       {% for key, label in modes %}
       <a class="mode-tab{% if key == mode %} active{% endif %}" href="{{ url_for('index', mode=key) }}">{{ label }}</a>
       {% endfor %}
+      <a class="mode-tab spice-link" href="{{ url_for('spice.spice_page') }}">SPICE Simulator (Lab 04) &rarr;</a>
     </nav>
 
     <div class="columns">

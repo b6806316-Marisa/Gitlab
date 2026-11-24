@@ -14,6 +14,7 @@ from bjt import (
     solve_nodal,
 )
 from diagrams import load_line_svg, schematic_svg
+from spice_routes import spice_bp
 from units import RESISTANCE_UNITS, VOLTAGE_UNITS, UnitError, to_si
 
 FIELD_META = {
@@ -176,6 +177,7 @@ def build_status(primary, bias, rows=None, mode=MODE_DIVIDER):
 
 def create_app():
     app = Flask(__name__)
+    app.register_blueprint(spice_bp)
 
     def schematic_for(mode, values, nodes=None):
         safe = {}

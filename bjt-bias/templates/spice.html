@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 04: BJT CE Amplifier Simulator — ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" role="img" aria-label="microchip">
+        <rect x="12" y="12" width="24" height="24" rx="4" class="logo-body"/>
+        <rect x="19" y="19" width="10" height="10" rx="2" class="logo-core"/>
+        <path d="M18 12V6M24 12V6M30 12V6M18 36v6M24 36v6M30 36v6M12 18H6M12 24H6M12 30H6M36 18h6M36 24h6M36 30h6" class="logo-pin"/>
+      </svg>
+      <div class="brand-text">
+        <h1>Lab 04: BJT CE Amplifier Simulator</h1>
+        <p>ENG29 2121 &ndash; วงจร Common-Emitter แรงดันจ่ายผ่านตัวหาร + ngspice จริง</p>
+      </div>
+    </div>
+    <div class="course-badge">
+      <span class="code-icon">&lt;/&gt;</span>
+      <span>Flask &rarr; ngspice &rarr; ผลลัพธ์</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <nav class="mode-tabs" aria-label="Page">
+      <a class="mode-tab" href="{{ url_for('index') }}">DC Bias (Lab 02/03)</a>
+      <a class="mode-tab active" href="{{ url_for('spice.spice_page') }}">SPICE Simulator (Lab 04)</a>
+    </nav>
+
+    <section class="engine-bar" aria-live="polite">
+      {% if engine %}
+        <span class="engine-dot" aria-hidden="true"></span>
+        <strong>Engine: OK</strong>
+        <span>{{ engine.version }}</span>
+        <span class="engine-sep">|</span>
+        <span>UTC {{ engine.timestamp }}</span>
+      {% elif errors %}
+        <span class="engine-dot bad" aria-hidden="true"></span>
+        <strong>Engine: ไม่พร้อมทำงาน</strong>
+        <span>แก้ไขข้อผิดพลาดด้านล่างแล้วรันใหม่</span>
+      {% else %}
+        <span class="engine-dot idle" aria-hidden="true"></span>
+        <strong>Engine: พร้อม</strong>
+        <span>กด “Run ngspice” เพื่อจำลอง .op / .ac / .tran</span>
+      {% endif %}
+    </section>
+
+    {% if errors %}
+    <ul class="error" role="alert">
+      {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="columns spice-columns">
+      <section class="card">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6"/></svg>Input Parameters</h2>
+        <form method="post" class="param-form" autocomplete="off">
+          {% for group_name, fields in groups %}
+          <fieldset class="field-group">
+            <legend>{{ group_name }}</legend>
+            {% for key, label, unit, hint in fields %}
+            <div class="prow">
+              <label class="plabel" for="f-{{ key }}">
+                <span class="sym">{{ label }}</span>
+                <span class="pdesc">{{ hint }}</span>
+              </label>
+              <input class="pval" type="text" id="f-{{ key }}" name="{{ key }}"
+                     value="{{ form.get(key, '') }}" autocomplete="off">
+              <span class="unit-static">{{ unit }}</span>
+            </div>
+            {% endfor %}
+          </fieldset>
+          {% endfor %}
+          <button class="calc" type="submit">Run ngspice (.op / .ac / .tran)</button>
+        </form>
+        <p class="note spice-hint">
+          หน่วยในฟอร์มเป็นหน่วยวิศวกรรม (kΩ, µF, mV, µs, ms) โปรแกรมแปลงเป็น SI
+          ก่อนสร้าง netlist ค่าที่ไม่ถูกต้องจะถูกปฏิเสธก่อนเรียก ngspice
+          ผลลัพธ์จะระบุหมายเหตุ startup transient ให้ด้วยเมื่อรันแล้ว
+        </p>
+      </section>
+
+      <section class="card spice-results">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9m5 9V5m5 13v-7m5 7V8"/></svg>Engineering Results</h2>
+
+        {% if not run %}
+          <p class="placeholder">ยังไม่มีผลจำลอง — กด “Run ngspice” เพื่อดู DC Operating Point, AC response และ Transient response จาก ngspice</p>
+        {% else %}
+          <h3 class="subhead">DC Operating Point <span class="source-tag">ngspice .op</span></h3>
+          <table class="result-table">
+            <tbody>
+              <tr><td>VB — node 2</td><td class="num">{{ '%.5f'|format(run.op.vb) }}</td><td class="unitc">V</td></tr>
+              <tr><td>VE — node 4</td><td class="num">{{ '%.5f'|format(run.op.ve) }}</td><td class="unitc">V</td></tr>
+              <tr><td>VC — node 3</td><td class="num">{{ '%.5f'|format(run.op.vc) }}</td><td class="unitc">V</td></tr>
+              <tr><td>VCE = VC &minus; VE</td><td class="num">{{ '%.5f'|format(run.op.vce) }}</td><td class="unitc">V</td></tr>
+              <tr><td>VBE</td><td class="num">{{ '%.5f'|format(run.op.vbe) }}</td><td class="unitc">V</td></tr>
+              <tr><td>IC</td><td class="num">{{ '%.6f'|format(run.op.ic * 1e3) }}</td><td class="unitc">mA</td></tr>
+              <tr><td>IB</td><td class="num">{{ '%.4f'|format(run.op.ib * 1e6) }}</td><td class="unitc">µA</td></tr>
+              <tr><td>IE</td><td class="num">{{ '%.6f'|format(run.op.ie * 1e3) }}</td><td class="unitc">mA</td></tr>
+              <tr><td>Vout (collector DC, node 6)</td><td class="num">{{ '%.5f'|format(run.op.vout) }}</td><td class="unitc">V</td></tr>
+            </tbody>
+          </table>
+
+          <h3 class="subhead">AC Frequency Response <span class="source-tag">ngspice .ac</span></h3>
+          {% if ac_summary %}
+          <table class="result-table">
+            <tbody>
+              <tr><td>Gain @ {{ '%.4g'|format(ac_summary.frequency_hz) }} Hz (Vout/Vin)</td>
+                  <td class="num">{{ '%.2f'|format(ac_summary.gain_db) }}</td><td class="unitc">dB</td></tr>
+              <tr><td>Phase @ {{ '%.4g'|format(ac_summary.frequency_hz) }} Hz</td>
+                  <td class="num">{{ '%.2f'|format(ac_summary.phase_deg) }}</td><td class="unitc">deg</td></tr>
+              <tr><td>Sweep range / samples</td>
+                  <td class="num">{{ '%.3g'|format(ac_summary.fmin_hz) }}&ndash;{{ '%.3g'|format(ac_summary.fmax_hz) }} / {{ ac_summary.samples }}</td>
+                  <td class="unitc">Hz / pts</td></tr>
+            </tbody>
+          </table>
+          {% endif %}
+          <div class="plot">{{ plots.ac }}</div>
+
+          <h3 class="subhead">Transient Response <span class="source-tag">ngspice .tran</span></h3>
+          {% if tran_summary %}
+          <table class="result-table">
+            <tbody>
+              <tr><td>Vin peak-to-peak</td><td class="num">{{ '%.2f'|format(tran_summary.vin_pp_mv) }}</td><td class="unitc">mV</td></tr>
+              <tr><td>Vout peak-to-peak</td><td class="num">{{ '%.2f'|format(tran_summary.vout_pp_mv) }}</td><td class="unitc">mV</td></tr>
+              <tr><td>Vout DC level removed from plot</td><td class="num">{{ '%.5f'|format(tran_summary.vout_dc_v) }}</td><td class="unitc">V</td></tr>
+              <tr><td>Samples / duration</td><td class="num">{{ tran_summary.samples }} / {{ '%.2f'|format(tran_summary.tstop_ms) }}</td><td class="unitc">pts / ms</td></tr>
+            </tbody>
+          </table>
+          {% endif %}
+          <div class="plot">{{ plots.tran }}</div>
+          <p class="note">
+            หมายเหตุ startup transient: ช่วงเริ่มต้นของสัญญาณอาจมีสปายก์จากการชาร์จ C1/C2
+            ค่าพีค-ทู-พีคด้านบนคำนวณจากข้อมูล .tran ทั้งช่วง จึงรวมผลนี้ด้วย
+            กราฟหัก DC level ของ Vout ออกเพื่อให้เห็นสัญญาณ AC ชัดเจน
+          </p>
+
+          <h3 class="subhead">SPICE vs Analytical <span class="source-tag">แยกแหล่งที่มา</span></h3>
+          <table class="compare-table">
+            <thead><tr><th>Parameter</th><th>Analytical</th><th>SPICE</th><th>% ต่าง</th><th>Unit</th></tr></thead>
+            <tbody>
+              {% for row in compare_rows %}
+              <tr><td>{{ row.label }}</td><td>{{ row.hand }}</td><td>{{ row.spice }}</td>
+                  <td>{{ row.diff }}</td><td>{{ row.unit }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="note">
+            Analytical ใช้สมการตัวหาร + VBE = 0.7 V และ β = BF (ไม่ใช่โมเดลทรานซิสเตอร์ของ ngspice)
+            ดังนั้นความต่างจึงเป็นผลจากโมเดล IS/VAF/capacitance ไม่ใช่ความผิดพลาดของโค้ด
+            ค่า % ต่างเป็นค่าสัมบูรณ์
+          </p>
+        {% endif %}
+      </section>
+
+      <section class="card provenance">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h7"/></svg>Provenance</h2>
+        {% if engine %}
+          <dl class="prov-list">
+            <dt>Engine</dt><dd>{{ engine.version }}</dd>
+            <dt>Executable</dt><dd class="wrap">{{ engine.executable }}</dd>
+            <dt>Timestamp (UTC)</dt><dd>{{ engine.timestamp }}</dd>
+            <dt>Work directory</dt><dd class="wrap">{{ engine.workdir }}</dd>
+          </dl>
+          {% for item in provenance %}
+          <details class="prov-detail">
+            <summary>{{ item.name }} — netlist SHA-256 <code>{{ item.netlist_sha[:16] }}…</code></summary>
+            <dl class="prov-list">
+              <dt>Command (argv list)</dt><dd class="wrap"><code>{{ item.command }}</code></dd>
+              <dt>Exit code</dt><dd>{{ item.exit_code }}</dd>
+              <dt>Netlist SHA-256</dt><dd class="wrap"><code>{{ item.netlist_sha }}</code></dd>
+              <dt>Result file</dt><dd>{{ item.result_name }}</dd>
+              <dt>Result SHA-256</dt><dd class="wrap"><code>{{ item.result_sha or '—' }}</code></dd>
+            </dl>
+            <h4>Netlist</h4>
+            <pre class="prov-code">{{ item.netlist }}</pre>
+            <h4>Raw log</h4>
+            <pre class="prov-code">{{ item.log }}</pre>
+          </details>
+          {% endfor %}
+        {% else %}
+          <p class="placeholder">Provenance (netlist, version, command, hash, log) จะปรากฏหลังการรันจริง</p>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+</body>
+</html>

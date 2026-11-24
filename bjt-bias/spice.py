@@ -273,6 +273,7 @@ class AnalysisRun:
 @dataclass(frozen=True)
 class SpiceRun:
     op: dict
+    op_run: AnalysisRun
     ac: AnalysisRun
     tran: AnalysisRun
     version: str
@@ -423,6 +424,7 @@ def run_simulations(inp, base_dir):
 
     return SpiceRun(
         op=parse_op_log(runs["op"].log),
+        op_run=runs["op"],
         ac=runs["ac"],
         tran=runs["tran"],
         version=version,
