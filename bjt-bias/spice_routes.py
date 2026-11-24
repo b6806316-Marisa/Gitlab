@@ -166,7 +166,7 @@ def spice_page():
 
     hand = hand_calc_op(inp)
     diffs = percent_diff(hand, run.op)
-    raw_plots = build_plots(run.op, run.ac.rows, run.tran.rows)
+    raw_plots = build_plots(run.op, run.ac.rows, run.tran.rows, sin_freq_hz=inp.sin_freq_hz)
     context.update({
         "run": run,
         "plots": {

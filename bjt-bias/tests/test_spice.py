@@ -143,12 +143,15 @@ class TestPlotsAndCompare(unittest.TestCase):
         self.assertAlmostEqual(gain, 20.0)
         self.assertAlmostEqual(phase, -180.0, places=5)
 
-    def test_ac_plot_has_separate_gain_and_phase_axes(self):
-        plots = build_plots({"vout": 0.0}, [(10, 20, -10, 0, 170)], [(0, 0, 0)])
+    def test_ac_plot_has_gain_and_phase_in_same_graph(self):
+        plots = build_plots({"vout": 0.0}, [(10, 20, -0.17, 0, 2.97)], [(0, 0, 0)])
         svg = plots["ac"]
         self.assertIn("Frequency (Hz)", svg)
         self.assertIn("Gain (dB)", svg)
         self.assertIn("Phase (deg)", svg)
+        self.assertEqual(svg.count("<svg"), 1)
+        # Phase should be dashed in the combined graph.
+        self.assertIn("stroke-dasharray", svg)
 
     def test_plots_are_svg_with_labels(self):
         op = {"vout": 7.0}
