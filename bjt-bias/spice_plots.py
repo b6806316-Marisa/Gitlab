@@ -1,6 +1,7 @@
 """Render ngspice result columns as inline SVG (no JavaScript required)."""
 
 from io import StringIO
+import math
 
 import matplotlib
 matplotlib.use("Agg")
@@ -16,32 +17,47 @@ def _svg(figure):
     return text[start:] if start >= 0 else text
 
 
+def ac_metrics(row):
+    """Return (gain_db, phase_deg) of Vout/Vin from one AC result row.
+
+    ac row columns: frequency, vdb(out), vp(out), vdb(in), vp(in)
+    ngspice 47 writes vp() in radians, so convert the difference to degrees.
+    """
+    gain_db = row[1] - (row[3] if len(row) > 3 else 0.0)
+    phase_rad = row[2] - (row[4] if len(row) > 4 else 0.0)
+    return gain_db, math.degrees(phase_rad)
+
+
 def build_plots(op, ac_rows, tran_rows):
     """Return {'ac': svg, 'tran': svg} from parsed ngspice output rows.
 
-    ac_rows columns: frequency, vdb(out), vp(out), vdb(in)
+    ac_rows columns: frequency, vdb(out), vp(out), vdb(in), vp(in)
     tran_rows columns: time, v(in), v(out)
     """
     plots = {}
 
     frequency = [row[0] for row in ac_rows]
-    gain = [row[1] - (row[3] if len(row) > 3 else 0.0) for row in ac_rows]
-    phase = [row[2] for row in ac_rows]
+    metrics = [ac_metrics(row) for row in ac_rows]
+    gain = [item[0] for item in metrics]
+    phase = [item[1] for item in metrics]
 
-    figure = Figure(figsize=(8.2, 3.9), dpi=110)
+    figure = Figure(figsize=(8.2, 5.2), dpi=110)
     FigureCanvasAgg(figure)
-    axis = figure.add_subplot(111)
-    axis.set_xscale("log")
-    axis.plot(frequency, gain, color="#0b7a72", linewidth=2, label="Gain")
-    axis.set_xlabel("Frequency (Hz)")
-    axis.set_ylabel("Gain (dB)", color="#0b7a72")
-    axis.grid(True, which="both", alpha=0.3)
-    axis.set_title("AC frequency response (ngspice .ac)")
-    other = axis.twinx()
-    other.plot(frequency, phase, color="#a65a2c", linewidth=1.6, linestyle="--", label="Phase")
-    other.set_ylabel("Phase (deg)", color="#a65a2c")
-    lines = axis.get_lines() + other.get_lines()
-    axis.legend(lines, [line.get_label() for line in lines], loc="lower left", fontsize=8)
+    gain_axis = figure.add_subplot(211)
+    gain_axis.set_xscale("log")
+    gain_axis.plot(frequency, gain, color="#0b7a72", linewidth=2, label="Gain")
+    gain_axis.set_xlabel("Frequency (Hz)")
+    gain_axis.set_ylabel("Gain (dB)", color="#0b7a72")
+    gain_axis.grid(True, which="both", alpha=0.3)
+    gain_axis.legend(loc="lower left", fontsize=8)
+
+    phase_axis = figure.add_subplot(212, sharex=gain_axis)
+    phase_axis.plot(frequency, phase, color="#a65a2c", linewidth=1.6, label="Phase")
+    phase_axis.set_xlabel("Frequency (Hz)")
+    phase_axis.set_ylabel("Phase (deg)", color="#a65a2c")
+    phase_axis.grid(True, which="both", alpha=0.3)
+    phase_axis.legend(loc="lower left", fontsize=8)
+    figure.suptitle("AC frequency response (ngspice .ac)", fontsize=11)
     figure.tight_layout()
     plots["ac"] = _svg(figure)
 

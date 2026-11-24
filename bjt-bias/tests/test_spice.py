@@ -14,7 +14,7 @@ from spice import (
     run_simulations,
     SpiceError,
 )
-from spice_plots import build_plots
+from spice_plots import ac_metrics, build_plots
 
 DEFAULT_FORM = {
     "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2", "re": "1", "rl": "10",
@@ -71,6 +71,7 @@ class TestNetlists(unittest.TestCase):
         self.assertIn("R1 1 2 100000", nets["op"])
         self.assertIn("BF=200", nets["op"])
         self.assertIn("ac dec 50 10 1000000", nets["ac"])
+        self.assertIn("wrdata ac.csv vdb(6) vp(6) vdb(5) vp(5)", nets["ac"])
         self.assertIn("tran 2e-05 0.2", nets["tran"])
         self.assertIn(".op", nets["op"])
         self.assertNotIn(".control", nets["op"])
@@ -136,9 +137,22 @@ class TestWrdata(unittest.TestCase):
 
 
 class TestPlotsAndCompare(unittest.TestCase):
+    def test_ac_metrics_converts_ngspice_radians_to_degrees(self):
+        # ngspice 47 vp() writes radians; -pi rad must be shown as -180 deg.
+        gain, phase = ac_metrics((1000, 20.0, -3.14159265, 0.0, 0.0))
+        self.assertAlmostEqual(gain, 20.0)
+        self.assertAlmostEqual(phase, -180.0, places=5)
+
+    def test_ac_plot_has_separate_gain_and_phase_axes(self):
+        plots = build_plots({"vout": 0.0}, [(10, 20, -10, 0, 170)], [(0, 0, 0)])
+        svg = plots["ac"]
+        self.assertIn("Frequency (Hz)", svg)
+        self.assertIn("Gain (dB)", svg)
+        self.assertIn("Phase (deg)", svg)
+
     def test_plots_are_svg_with_labels(self):
         op = {"vout": 7.0}
-        ac = [(10, 20, -10, 0), (100, 30, -30, 0)]
+        ac = [(10, 20, -0.17, 0, 2.97), (100, 30, -0.52, 0, 2.62)]
         tran = [(0, 0, 7.0), (0.001, 0.01, 7.01)]
         plots = build_plots(op, ac, tran)
         self.assertTrue(plots["ac"].startswith("<svg"))

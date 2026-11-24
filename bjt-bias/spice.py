@@ -198,7 +198,7 @@ def build_netlists(inp):
         ".control",
         "set wr_singlescale",
         f"ac dec {inp.ac_ppd} {_plain(inp.ac_fstart_hz)} {_plain(inp.ac_fstop_hz)}",
-        "wrdata ac.csv vdb(6) vp(6) vdb(5)",
+        "wrdata ac.csv vdb(6) vp(6) vdb(5) vp(5)",
         ".endc",
         "",
     ])

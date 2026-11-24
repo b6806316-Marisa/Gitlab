@@ -14,7 +14,7 @@ from spice import (
     percent_diff,
     run_simulations,
 )
-from spice_plots import build_plots
+from spice_plots import ac_metrics, build_plots
 
 
 spice_bp = Blueprint("spice", __name__)
@@ -76,14 +76,15 @@ def _fmt(value, key):
 
 
 def _ac_summary(run, target_hz):
-    rows = [row for row in run.ac.rows if len(row) >= 4]
+    rows = [row for row in run.ac.rows if len(row) >= 5]
     if not rows:
         return None
     nearest = min(rows, key=lambda row: abs(row[0] - target_hz))
+    gain_db, phase_deg = ac_metrics(nearest)
     return {
         "frequency_hz": nearest[0],
-        "gain_db": nearest[1] - nearest[3],
-        "phase_deg": nearest[2],
+        "gain_db": gain_db,
+        "phase_deg": phase_deg,
         "vin_db": nearest[3],
         "samples": len(rows),
         "fmin_hz": rows[0][0],
