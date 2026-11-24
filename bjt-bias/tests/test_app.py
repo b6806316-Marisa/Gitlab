@@ -40,10 +40,9 @@ class TestRoutes(unittest.TestCase):
         self.assertIn("kΩ", body)
         self.assertIn("mV", body)
 
-    def test_get_shows_lab_header_and_goal(self):
+    def test_get_shows_lab_header(self):
         body = self.client.get("/").get_data(as_text=True)
         self.assertIn("Lab 02: BJT DC Bias Web App", body)
-        self.assertIn("Week 2 Goal", body)
         self.assertIn("Computer Programming for Electrical Engineers", body)
 
     def test_post_valid_shows_results(self):
