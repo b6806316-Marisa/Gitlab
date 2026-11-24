@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 .env
 .superpowers/
+bjt-bias/tools/
+bjt-bias/var/
