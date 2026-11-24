@@ -4,6 +4,8 @@ from pathlib import Path
 
 from spice import (
     build_netlists,
+    hand_calc_op,
+    percent_diff,
     default_spice_form,
     find_ngspice,
     parse_op_log,
@@ -12,6 +14,7 @@ from spice import (
     run_simulations,
     SpiceError,
 )
+from spice_plots import build_plots
 
 DEFAULT_FORM = {
     "vcc": "12", "r1": "100", "r2": "22", "rc": "2.2", "re": "1", "rl": "10",
@@ -130,6 +133,34 @@ class TestWrdata(unittest.TestCase):
     def test_empty_output_raises_spice_error(self):
         with self.assertRaises(SpiceError):
             parse_wrdata("\n# comment only\n")
+
+
+class TestPlotsAndCompare(unittest.TestCase):
+    def test_plots_are_svg_with_labels(self):
+        op = {"vout": 7.0}
+        ac = [(10, 20, -10, 0), (100, 30, -30, 0)]
+        tran = [(0, 0, 7.0), (0.001, 0.01, 7.01)]
+        plots = build_plots(op, ac, tran)
+        self.assertTrue(plots["ac"].startswith("<svg"))
+        self.assertIn("Frequency", plots["ac"])
+        self.assertIn("Gain", plots["ac"])
+        self.assertIn("Phase", plots["ac"])
+        self.assertTrue(plots["tran"].startswith("<svg"))
+        self.assertIn("Time", plots["tran"])
+        self.assertIn("Vin", plots["tran"])
+
+    def test_hand_calc_uses_bf_as_beta(self):
+        inp, _ = parse_spice_form(DEFAULT_FORM)
+        hand = hand_calc_op(inp)
+        self.assertAlmostEqual(hand["beta"], 200)
+        self.assertGreater(hand["ic"], 0)
+        self.assertGreater(hand["vce"], 0)
+
+    def test_percent_diff_is_signed_and_finite(self):
+        hand = {"ic": 1.0}
+        op = {"ic": 0.5}
+        diff = percent_diff(hand, op)
+        self.assertAlmostEqual(diff["ic"], 50.0)
 
 
 if __name__ == "__main__":

@@ -215,6 +215,40 @@ def build_netlists(inp):
     return nets
 
 
+def hand_calc_op(inp):
+    """Independent analytical reference: fixed VBE = 0.7 V, beta = BF."""
+    beta = inp.bf
+    vth = inp.vcc_v * inp.r2_ohm / (inp.r1_ohm + inp.r2_ohm)
+    rth = inp.r1_ohm * inp.r2_ohm / (inp.r1_ohm + inp.r2_ohm)
+    ib = (vth - 0.7) / (rth + (1 + beta) * inp.re_ohm)
+    ic = beta * ib
+    ie = (1 + beta) * ib
+    ve = ie * inp.re_ohm
+    vc = inp.vcc_v - ic * inp.rc_ohm
+    return {
+        "beta": beta,
+        "vth": vth,
+        "rth": rth,
+        "ib": ib,
+        "ic": ic,
+        "ie": ie,
+        "vb": ve + 0.7,
+        "ve": ve,
+        "vc": vc,
+        "vce": vc - ve,
+    }
+
+
+def percent_diff(hand, op):
+    """Signed percentage difference of SPICE from the analytical reference."""
+    result = {}
+    for key in ("vb", "ve", "vc", "vce", "ib", "ic", "ie"):
+        reference = hand.get(key, 0.0)
+        actual = op.get(key, 0.0)
+        result[key] = abs(actual - reference) / reference * 100 if reference else 0.0
+    return result
+
+
 class SpiceError(Exception):
     """Raised when ngspice is missing, fails, times out or writes no result."""
 
